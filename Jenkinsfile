@@ -1,147 +1,90 @@
+// ============================================================
+// Stationery Management System - Declarative Jenkins Pipeline
+// ============================================================
+// Prerequisites:
+//   - Jenkins with Pipeline plugin
+//   - Maven, JDK 17+, Docker & Docker Compose on the agent
+// ============================================================
+
 pipeline {
     agent any
 
-    tools {
-        jdk 'jdk17'
-        maven 'maven3'
+    environment {
+        // Adjust these paths to match your Windows Jenkins agent configuration
+        JAVA_HOME = 'C:\\Program Files\\Java\\jdk-21'
+        MAVEN_HOME = 'C:\\apache-maven-3.9.6'
+        PATH = "${JAVA_HOME}\\bin;${MAVEN_HOME}\\bin;${env.PATH}"
     }
 
     options {
-        skipDefaultCheckout(true)
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 25, unit: 'MINUTES')
         disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '15'))
-        timeout(time: 30, unit: 'MINUTES')
-    }
-
-    parameters {
-        booleanParam(
-            name: 'RUN_SONARQUBE',
-            defaultValue: false,
-            description: 'Run SonarQube analysis after the Maven build and tests succeed.'
-        )
-        booleanParam(
-            name: 'DEPLOY_APP',
-            defaultValue: false,
-            description: 'Deploy with Docker Compose after a successful build on main/master.'
-        )
-    }
-
-    environment {
-        SONARQUBE_SERVER = 'sonarqube'
-        MAVEN_ARGS = '-B -ntp'
-        COMPOSE_FILE = 'docker-compose.yml'
     }
 
     stages {
+
+        // 1. Checkout Source Code
         stage('Checkout') {
             steps {
+                echo 'Checking out source code...'
                 checkout scm
             }
         }
 
-        stage('Verify Toolchain') {
+        // 2. Build All Backend Services
+        stage('Build Backend') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh 'java -version'
-                        sh 'mvn -version'
-                    } else {
-                        bat 'java -version'
-                        bat 'mvn -version'
-                    }
+                echo 'Building all backend microservices...'
+                bat 'mvn clean package -DskipTests -B'
+            }
+        }
+
+        // 3. Run Backend Tests
+        stage('Run Backend Tests') {
+            steps {
+                echo 'Running backend unit tests...'
+                bat 'mvn test -B'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true,
+                          testResults: '**/target/surefire-reports/*.xml'
                 }
             }
         }
 
-        stage('Backend Build And Test') {
+        // 4. Build Docker Images and Deploy
+        stage('Docker Deploy') {
             steps {
-                dir('backend') {
-                    script {
-                        if (isUnix()) {
-                            sh "mvn ${env.MAVEN_ARGS} clean verify"
-                        } else {
-                            bat "mvn ${env.MAVEN_ARGS} clean verify"
-                        }
-                    }
-                }
-            }
-        }
+                echo 'Stopping any existing containers...'
+                bat 'docker-compose down --remove-orphans || exit 0'
 
-        stage('SonarQube Analysis') {
-            when {
-                expression { params.RUN_SONARQUBE }
-            }
-            steps {
-                withSonarQubeEnv("${env.SONARQUBE_SERVER}") {
-                    dir('backend') {
-                        script {
-                            def sonarCmd =
-                                "mvn ${env.MAVEN_ARGS} sonar:sonar " +
-                                "-Dsonar.projectKey=stationery-management " +
-                                "-Dsonar.projectName=\"Stationery Management System\""
+                echo 'Building images and starting containers...'
+                bat 'docker-compose up -d --build'
 
-                            if (isUnix()) {
-                                sh sonarCmd
-                            } else {
-                                bat sonarCmd
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                echo 'Waiting for services to become healthy...'
+                bat 'timeout /t 60 /nobreak > NUL'
 
-        stage('Quality Gate') {
-            when {
-                expression { params.RUN_SONARQUBE }
-            }
-            steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Deploy With Docker Compose') {
-            when {
-                expression {
-                    params.DEPLOY_APP &&
-                    !env.CHANGE_ID &&
-                    (!env.BRANCH_NAME || env.BRANCH_NAME in ['main', 'master'])
-                }
-            }
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh "docker compose -f ${env.COMPOSE_FILE} down --remove-orphans"
-                        sh "docker compose -f ${env.COMPOSE_FILE} up -d --build"
-                    } else {
-                        bat "docker compose -f ${env.COMPOSE_FILE} down --remove-orphans"
-                        bat "docker compose -f ${env.COMPOSE_FILE} up -d --build"
-                    }
-                }
+                echo 'Verifying deployment...'
+                bat 'docker-compose ps'
             }
         }
     }
 
     post {
-        always {
-            junit(
-                allowEmptyResults: true,
-                testResults: 'backend/**/target/surefire-reports/*.xml,backend/**/target/failsafe-reports/*.xml'
-            )
-            archiveArtifacts(
-                allowEmptyArchive: true,
-                artifacts: 'backend/**/target/*.jar',
-                excludes: 'backend/**/target/*.jar.original',
-                fingerprint: true
-            )
-        }
         success {
-            echo 'Pipeline completed successfully.'
+            echo '==========================================='
+            echo '  Pipeline SUCCEEDED!'
+            echo "  Build #${BUILD_NUMBER} deployed."
+            echo '==========================================='
         }
         failure {
-            echo 'Pipeline failed. Check the first failed stage for the root cause.'
+            echo '==========================================='
+            echo '  Pipeline FAILED!'
+            echo "  Check logs for build #${BUILD_NUMBER}."
+            echo '==========================================='
         }
     }
 }

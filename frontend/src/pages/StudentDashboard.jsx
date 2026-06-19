@@ -156,7 +156,11 @@ const StudentDashboard = () => {
             {loading ? <p>Loading...</p> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {requests.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>You haven't made any requests yet.</p> : null}
-                {[...requests].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
+                {[...requests].sort((a, b) => {
+                  if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+                  if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
+                  return new Date(b.createdAt) - new Date(a.createdAt);
+                }).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
                   <div key={req.requestId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <h4 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Request #{req.requestId}</h4>

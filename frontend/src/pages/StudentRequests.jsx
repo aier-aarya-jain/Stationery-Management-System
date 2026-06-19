@@ -21,7 +21,11 @@ export default function StudentRequests() {
       .finally(() => setLoading(false));
   }, []);
 
-  const shown = (filter === 'ALL' ? requests : requests.filter(r => r.status === filter)).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const shown = (filter === 'ALL' ? requests : requests.filter(r => r.status === filter)).sort((a, b) => {
+    if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+    if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
   const paginatedShown = shown.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (

@@ -210,7 +210,11 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...requests].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
+                  {[...requests].sort((a, b) => {
+                    if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+                    if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                  }).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
                     <tr key={req.requestId}>
                       <td>#{req.requestId}</td>
                       <td>{req.studentEmail}</td>
