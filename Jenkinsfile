@@ -9,12 +9,8 @@
 pipeline {
     agent any
 
-    environment {
-        // Adjust these paths to match your Windows Jenkins agent configuration
-        JAVA_HOME = 'C:\\Program Files\\Java\\jdk-21'
-        MAVEN_HOME = 'C:\\apache-maven-3.9.6'
-        PATH = "${JAVA_HOME}\\bin;${MAVEN_HOME}\\bin;${env.PATH}"
-    }
+    // Removed hardcoded environment block to rely on system PATH. 
+    // Ensure 'mvn', 'java', and 'docker-compose' are added to your system's Environment Variables PATH.
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
@@ -36,16 +32,20 @@ pipeline {
         // 2. Build All Backend Services
         stage('Build Backend') {
             steps {
-                echo 'Building all backend microservices...'
-                bat 'mvn clean package -DskipTests -B'
+                dir('backend') {
+                    echo 'Building all backend microservices...'
+                    bat 'mvn clean package -DskipTests -B'
+                }
             }
         }
 
         // 3. Run Backend Tests
         stage('Run Backend Tests') {
             steps {
-                echo 'Running backend unit tests...'
-                bat 'mvn test -B'
+                dir('backend') {
+                    echo 'Running backend unit tests...'
+                    bat 'mvn test -B'
+                }
             }
             post {
                 always {
