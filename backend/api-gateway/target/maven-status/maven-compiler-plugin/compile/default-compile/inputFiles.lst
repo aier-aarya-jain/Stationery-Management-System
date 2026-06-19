@@ -1,2 +1,2 @@
-/app/api-gateway/src/main/java/com/stationery/gateway/ApiGatewayApplication.java
-/app/api-gateway/src/main/java/com/stationery/gateway/config/CorsConfig.java
+/usr/src/app/api-gateway/src/main/java/com/stationery/gateway/ApiGatewayApplication.java
+/usr/src/app/api-gateway/src/main/java/com/stationery/gateway/config/CorsConfig.java

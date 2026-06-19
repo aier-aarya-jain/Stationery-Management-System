@@ -15,14 +15,19 @@ pipeline {
         }
 
         stage('Build Jars') {
-            steps {
-                dir('backend') {
-                    echo '🔨 Building backend jars (reactor mvn package)...'
-                    bat 'docker run --rm -v "%CD%":/usr/src/app -w /usr/src/app maven:3.8.5-openjdk-17 mvn clean package -DskipTests -B'
-                }
-            }
-        }
+    steps {
+        dir('backend') {
 
+            bat '''
+            docker run --rm ^
+            -v "%CD%":/usr/src/app ^
+            -w /usr/src/app ^
+            maven:3.8.5-openjdk-17 ^
+            mvn package -DskipTests
+            '''
+        }
+    }
+}
         stage('Stop Existing Containers') {
             steps {
                 bat 'docker compose -f docker-compose.yml down --remove-orphans'
