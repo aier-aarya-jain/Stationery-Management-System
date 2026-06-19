@@ -18,43 +18,43 @@ pipeline {
             steps {
                 dir('backend') {
                     echo '🔨 Building backend jars (reactor mvn package)...'
-                    bat 'mvn clean package -DskipTests -B'
+                    bat 'docker run --rm -v "%CD%":/usr/src/app -w /usr/src/app maven:3.8.5-openjdk-17 mvn clean package -DskipTests -B'
                 }
             }
         }
 
         stage('Stop Existing Containers') {
             steps {
-                bat 'docker compose -f ci-cd/docker-compose.yml down --remove-orphans'
+                bat 'docker compose -f docker-compose.yml down --remove-orphans'
             }
         }
 
         stage('Build Fresh Images') {
             steps {
-                bat 'docker compose -f ci-cd/docker-compose.yml build --no-cache'
+                bat 'docker compose -f docker-compose.yml build --no-cache'
             }
         }
 
         stage('Start Containers') {
             steps {
-                bat 'docker compose -f ci-cd/docker-compose.yml up -d'
+                bat 'docker compose -f docker-compose.yml up -d'
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                bat 'docker compose -f ci-cd/docker-compose.yml ps'
+                bat 'docker compose -f docker-compose.yml ps'
             }
         }
     }
 
     post {
         success {
-            echo 'SMS deployed successfully'
+            echo 'Stationery Hub deployed successfully'
         }
 
         failure {
-            echo 'SMS deployment failed'
+            echo 'Stationery Hub deployment failed'
         }
     }
 }
