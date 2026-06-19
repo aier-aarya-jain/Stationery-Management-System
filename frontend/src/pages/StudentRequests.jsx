@@ -12,6 +12,8 @@ export default function StudentRequests() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [detail, setDetail] = useState(null);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     api.get('/requests/me?page=0&size=100')
@@ -19,7 +21,8 @@ export default function StudentRequests() {
       .finally(() => setLoading(false));
   }, []);
 
-  const shown = filter === 'ALL' ? requests : requests.filter(r => r.status === filter);
+  const shown = (filter === 'ALL' ? requests : requests.filter(r => r.status === filter)).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const paginatedShown = shown.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (
     <div>
@@ -30,7 +33,7 @@ export default function StudentRequests() {
 
       <div className="toolbar">
         {['ALL','PENDING','APPROVED','REJECTED','FULFILLED'].map(s => (
-          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary-student' : 'btn-ghost'}`} onClick={() => setFilter(s)}>{s}</button>
+          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary-student' : 'btn-ghost'}`} onClick={() => { setFilter(s); setPage(1); }}>{s}</button>
         ))}
       </div>
 
@@ -39,20 +42,27 @@ export default function StudentRequests() {
           : shown.length === 0 ? <div className="empty-state"><div className="empty-state-icon">📭</div><p>No requests found.</p></div>
           : <div className="table-wrapper">
               <table>
-                <thead><tr><th>ID</th><th>Items</th><th>Status</th><th>Date</th><th></th></tr></thead>
+                <thead><tr><th>ID</th><th>Items</th><th>Status</th><th>Date & Time</th><th></th></tr></thead>
                 <tbody>
-                  {shown.map(r => (
+                  {paginatedShown.map(r => (
                     <tr key={r.requestId}>
                       <td style={{ fontFamily: 'monospace', fontSize: 12 }}>#{r.requestId}</td>
                       <td>{r.items?.length} item(s)</td>
                       <td>{badge(r.status)}</td>
-                      <td style={{ fontSize: 12 }}>{new Date(r.createdAt).toLocaleDateString()}</td>
+                      <td style={{ fontSize: 12 }}>{new Date(r.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                       <td><button className="btn btn-ghost btn-sm" onClick={() => setDetail(r)}>View</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {Math.ceil(shown.length / itemsPerPage) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center', padding: '0 16px 16px' }}>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</button>
+                <span style={{ fontSize: '13px' }}>Page {page} of {Math.ceil(shown.length / itemsPerPage)}</span>
+                <button className="btn btn-ghost btn-sm" disabled={page === Math.ceil(shown.length / itemsPerPage)} onClick={() => setPage(p => p + 1)}>Next</button>
+              </div>
+            )}
         }
       </div>
 

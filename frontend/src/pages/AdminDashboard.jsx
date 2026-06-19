@@ -12,6 +12,10 @@ const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  
+  const [reqPage, setReqPage] = useState(1);
+  const [invPage, setInvPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Modal state
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -200,17 +204,17 @@ const AdminDashboard = () => {
                   <tr>
                     <th>ID</th>
                     <th>Student</th>
-                    <th>Date</th>
+                    <th>Date & Time</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map(req => (
+                  {[...requests].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
                     <tr key={req.requestId}>
                       <td>#{req.requestId}</td>
                       <td>{req.studentEmail}</td>
-                      <td>{new Date(req.createdAt).toLocaleDateString()}</td>
+                      <td>{new Date(req.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                       <td><span className={`status-chip status-${req.status}`}>{req.status}</span></td>
                       <td>
                         {req.status === 'PENDING' && (
@@ -244,6 +248,13 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+            {Math.ceil(requests.length / itemsPerPage) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
+                <button className="btn-primary outline" disabled={reqPage === 1} onClick={() => setReqPage(p => p - 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Prev</button>
+                <span style={{ fontSize: '0.875rem' }}>Page {reqPage} of {Math.ceil(requests.length / itemsPerPage)}</span>
+                <button className="btn-primary outline" disabled={reqPage === Math.ceil(requests.length / itemsPerPage)} onClick={() => setReqPage(p => p + 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Next</button>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -268,9 +279,9 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {inventory.map((item, index) => (
+                  {inventory.slice((invPage - 1) * itemsPerPage, invPage * itemsPerPage).map((item, index) => (
                     <tr key={item.id}>
-                      <td>#{index + 1}</td>
+                      <td>#{(invPage - 1) * itemsPerPage + index + 1}</td>
                       <td style={{ fontWeight: 500 }}>{item.name}</td>
                       <td>{item.category}</td>
                       <td style={{ color: item.availableQuantity <= item.minimumQuantity ? '#dc2626' : 'inherit' }}>
@@ -290,6 +301,13 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+            {Math.ceil(inventory.length / itemsPerPage) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
+                <button className="btn-primary outline" disabled={invPage === 1} onClick={() => setInvPage(p => p - 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Prev</button>
+                <span style={{ fontSize: '0.875rem' }}>Page {invPage} of {Math.ceil(inventory.length / itemsPerPage)}</span>
+                <button className="btn-primary outline" disabled={invPage === Math.ceil(inventory.length / itemsPerPage)} onClick={() => setInvPage(p => p + 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Next</button>
+              </div>
+            )}
           </motion.div>
         )}
 

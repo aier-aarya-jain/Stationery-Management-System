@@ -11,6 +11,9 @@ const StudentDashboard = () => {
   const [cart, setCart] = useState({});
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reqPage, setReqPage] = useState(1);
+  const [invPage, setInvPage] = useState(1);
+  const itemsPerPage = 10;
 
   const links = [
     { label: 'Inventory', path: '/student', icon: Home },
@@ -101,7 +104,7 @@ const StudentDashboard = () => {
             </div>
 
             <div className="card-grid">
-              {inventory.map(item => {
+              {inventory.slice((invPage - 1) * itemsPerPage, invPage * itemsPerPage).map(item => {
                 const outOfStock = item.availableQuantity <= 0;
                 const currentQty = cart[item.id] || 0;
                 const limitReached = currentQty >= item.availableQuantity;
@@ -137,6 +140,13 @@ const StudentDashboard = () => {
                 </div>
               )})}
             </div>
+            {Math.ceil(inventory.length / itemsPerPage) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem', alignItems: 'center' }}>
+                <button className="btn-primary outline" disabled={invPage === 1} onClick={() => setInvPage(p => p - 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Prev</button>
+                <span style={{ fontSize: '0.875rem' }}>Page {invPage} of {Math.ceil(inventory.length / itemsPerPage)}</span>
+                <button className="btn-primary outline" disabled={invPage === Math.ceil(inventory.length / itemsPerPage)} onClick={() => setInvPage(p => p + 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Next</button>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -146,12 +156,12 @@ const StudentDashboard = () => {
             {loading ? <p>Loading...</p> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {requests.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>You haven't made any requests yet.</p> : null}
-                {requests.map(req => (
+                {[...requests].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
                   <div key={req.requestId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <h4 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Request #{req.requestId}</h4>
                       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        {new Date(req.createdAt).toLocaleString()} • {req.items?.length || 0} items
+                        {new Date(req.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} • {req.items?.length || 0} items
                       </p>
                       {req.rejectionReason && (
                         <p style={{ fontSize: '0.875rem', color: '#dc2626', marginTop: '0.5rem' }}>
@@ -162,6 +172,13 @@ const StudentDashboard = () => {
                     <span className={`status-chip status-${req.status}`}>{req.status}</span>
                   </div>
                 ))}
+              </div>
+            )}
+            {Math.ceil(requests.length / itemsPerPage) > 0 && !loading && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem', alignItems: 'center' }}>
+                <button className="btn-primary outline" disabled={reqPage === 1} onClick={() => setReqPage(p => p - 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Prev</button>
+                <span style={{ fontSize: '0.875rem' }}>Page {reqPage} of {Math.ceil(requests.length / itemsPerPage)}</span>
+                <button className="btn-primary outline" disabled={reqPage === Math.ceil(requests.length / itemsPerPage)} onClick={() => setReqPage(p => p + 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Next</button>
               </div>
             )}
           </motion.div>

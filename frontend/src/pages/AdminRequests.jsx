@@ -15,6 +15,8 @@ export default function AdminRequests() {
   const [reason, setReason] = useState('');
   const [detail, setDetail] = useState(null);
   const [msg, setMsg] = useState({ text: '', type: '' });
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => { load(); }, []);
 
@@ -41,7 +43,8 @@ export default function AdminRequests() {
     setRejectId(null); setReason('');
   };
 
-  const shown = filter === 'ALL' ? requests : requests.filter(r => r.status === filter);
+  const shown = (filter === 'ALL' ? requests : requests.filter(r => r.status === filter)).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const paginatedShown = shown.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (
     <div>
@@ -54,7 +57,7 @@ export default function AdminRequests() {
 
       <div className="toolbar">
         {['ALL','PENDING','APPROVED','REJECTED','FULFILLED'].map(s => (
-          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary-admin' : 'btn-ghost'}`} onClick={() => setFilter(s)}>{s}</button>
+          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary-admin' : 'btn-ghost'}`} onClick={() => { setFilter(s); setPage(1); }}>{s}</button>
         ))}
         <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={load}>🔄</button>
       </div>
@@ -64,15 +67,15 @@ export default function AdminRequests() {
           : shown.length === 0 ? <div className="empty-state"><div className="empty-state-icon">📭</div><p>No requests.</p></div>
           : <div className="table-wrapper">
               <table>
-                <thead><tr><th>ID</th><th>Student</th><th>Items</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+                <thead><tr><th>ID</th><th>Student</th><th>Items</th><th>Status</th><th>Date & Time</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {shown.map(r => (
+                  {paginatedShown.map(r => (
                     <tr key={r.requestId}>
                       <td style={{ fontFamily: 'monospace', fontSize: 12 }}>#{r.requestId}</td>
                       <td>{r.studentEmail}</td>
                       <td><button className="btn btn-ghost btn-sm" onClick={() => setDetail(r)}>👁 {r.items?.length}</button></td>
                       <td>{badge(r.status)}</td>
-                      <td style={{ fontSize: 12 }}>{new Date(r.createdAt).toLocaleDateString()}</td>
+                      <td style={{ fontSize: 12 }}>{new Date(r.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
                           {r.status === 'PENDING' && <>
@@ -93,6 +96,13 @@ export default function AdminRequests() {
                 </tbody>
               </table>
             </div>
+            {Math.ceil(shown.length / itemsPerPage) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center', padding: '0 16px 16px' }}>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</button>
+                <span style={{ fontSize: '13px' }}>Page {page} of {Math.ceil(shown.length / itemsPerPage)}</span>
+                <button className="btn btn-ghost btn-sm" disabled={page === Math.ceil(shown.length / itemsPerPage)} onClick={() => setPage(p => p + 1)}>Next</button>
+              </div>
+            )}
         }
       </div>
 
