@@ -1,0 +1,14 @@
+CREATE DATABASE IF NOT EXISTS stationery_inventory;
+USE stationery_inventory;
+
+CREATE TABLE IF NOT EXISTS stationery_items (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    available_quantity INT NOT NULL,
+    minimum_quantity INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_item_category ON stationery_items(category);

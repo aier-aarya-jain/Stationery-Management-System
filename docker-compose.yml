@@ -1,0 +1,152 @@
+# docker-compose.yml — Stationery Management System Infrastructure
+#
+# Defines and orchestrates all services required to run the application locally.
+# Services are connected via a shared Docker bridge network (stationery-net).
+#
+# Startup Order (enforced by depends_on):
+#   mysql → config-server → eureka-server → api-gateway
+#                                         → auth-service
+#                                         → inventory-service
+#                                         → request-service
+#
+# Networking Assumption:
+#   All inter-service communication uses Docker service names as hostnames
+#   (e.g., "mysql", "eureka-server"). These are resolved within stationery-net
+#   and are NOT accessible by name from the host machine.
+#
+# Port Mapping (host:container):
+#   3306  → MySQL Database
+#   8888  → Config Server
+#   8761  → Eureka Service Registry
+#   8085  → API Gateway (single entry point for all frontend requests)
+
+version: '3.8'
+
+services:
+
+  # -------------------------------------------------------
+  # MySQL — Primary database for all three microservices.
+  # -------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: stationery_mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql:/docker-entrypoint-initdb.d # Loads the DB init scripts
+    networks:
+      - stationery-net
+
+  # -------------------------------------------------------
+  # Config Server — Centralized configuration management.
+  # -------------------------------------------------------
+  config-server:
+    build: ./backend/config-server
+    container_name: config-server
+    ports:
+      - "8888:8888"
+    networks:
+      - stationery-net
+    depends_on:
+      - mysql
+
+  # -------------------------------------------------------
+  # Eureka Server — Service registry for dynamic service discovery.
+  # -------------------------------------------------------
+  eureka-server:
+    build: ./backend/eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - stationery-net
+    depends_on:
+      - config-server
+
+  # -------------------------------------------------------
+  # API Gateway — Single entry point for all client requests.
+  # -------------------------------------------------------
+  api-gateway:
+    build: ./backend/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8085:8080"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - stationery-net
+    depends_on:
+      - eureka-server
+
+  # -------------------------------------------------------
+  # Auth Service — Handles user registration and login.
+  # -------------------------------------------------------
+  auth-service:
+    build: ./backend/auth-service
+    container_name: auth-service
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - stationery-net
+    depends_on:
+      - mysql
+      - eureka-server
+
+  # -------------------------------------------------------
+  # Inventory Service — Manages stationery stock.
+  # -------------------------------------------------------
+  inventory-service:
+    build: ./backend/inventory-service
+    container_name: inventory-service
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - stationery-net
+    depends_on:
+      - mysql
+      - eureka-server
+
+  # -------------------------------------------------------
+  # Request Service — Manages student stationery requests.
+  # -------------------------------------------------------
+  request-service:
+    build: ./backend/request-service
+    container_name: request-service
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - stationery-net
+    depends_on:
+      - mysql
+      - eureka-server
+
+  # -------------------------------------------------------
+  # Frontend Service — React App
+  # -------------------------------------------------------
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    networks:
+      - stationery-net
+    depends_on:
+      - api-gateway
+
+# Shared bridge network
+networks:
+  stationery-net:
+    driver: bridge
+
+# Named volume
+volumes:
+  mysql_data:

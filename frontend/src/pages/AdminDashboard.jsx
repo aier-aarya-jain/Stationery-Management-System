@@ -1,0 +1,434 @@
+import React, { useState, useEffect } from 'react';
+import Sidebar from '../components/Sidebar';
+import { LayoutDashboard, Package, ClipboardList, AlertTriangle, CheckCircle, XCircle, Archive, Trash2, Edit2 } from 'lucide-react';
+import api from '../api/axiosInstance';
+import { toast } from 'react-toastify';
+import { motion } from 'framer-motion';
+
+const AdminDashboard = () => {
+  const [activeTab, setActiveTab] = useState('requests');
+  const [lowStock, setLowStock] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
+
+  // Modal state
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectId, setRejectId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  // Add Item Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    category: '',
+    unit: 'pcs',
+    availableQuantity: 0,
+    minimumQuantity: 0
+  });
+
+  // Edit Item Modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editItem, setEditItem] = useState({
+    id: null,
+    name: '',
+    category: '',
+    unit: 'pcs',
+    availableQuantity: 0,
+    minimumQuantity: 0
+  });
+
+  const links = [
+    { label: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
+  ];
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [invRes, lowStockRes, reqRes] = await Promise.all([
+        api.get('/inventory?size=100'),
+        api.get('/inventory/low-stock'),
+        api.get('/requests?size=100')
+      ]);
+      setInventory(invRes.data.content || []);
+      setLowStock(lowStockRes.data || []);
+      setRequests(reqRes.data.content || []);
+    } catch (error) {}
+    setLoading(false);
+  };
+
+  const approveRequest = async (id) => {
+    setProcessingId(id);
+    try {
+      await api.post(`/requests/${id}/approve`);
+      toast.success('Request approved', { toastId: `approve-success-${id}` });
+      fetchData();
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || 'Failed to approve request';
+      toast.error(errorMsg, { toastId: `error-${errorMsg}` });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const openRejectModal = (id) => {
+    setRejectId(id);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectReason) {
+      toast.warning('Reason is required');
+      return;
+    }
+    try {
+      await api.post(`/requests/${rejectId}/reject?reason=${encodeURIComponent(rejectReason)}`);
+      toast.success('Request rejected');
+      setShowRejectModal(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to reject request');
+    }
+  };
+
+  const fulfillRequest = async (id) => {
+    try {
+      await api.post(`/requests/${id}/fulfill`);
+      toast.success('Request fulfilled');
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to fulfill request');
+    }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/inventory', newItem);
+      toast.success('Item added successfully');
+      setShowAddModal(false);
+      setNewItem({ name: '', category: '', unit: 'pcs', availableQuantity: 0, minimumQuantity: 0 });
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add item');
+    }
+  };
+
+  const openEditModal = (item) => {
+    setEditItem({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      availableQuantity: item.availableQuantity,
+      minimumQuantity: item.minimumQuantity
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditItem = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/inventory/${editItem.id}`, editItem);
+      toast.success('Item updated successfully');
+      setShowEditModal(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update item');
+    }
+  };
+
+  const deleteItem = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+    try {
+      await api.delete(`/inventory/${id}`);
+      toast.success('Item deleted successfully');
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to delete item');
+    }
+  };
+
+  return (
+    <div className="dashboard-layout">
+      <Sidebar links={links} />
+      <div className="dashboard-content">
+
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+          <button 
+            className={`btn-primary ${activeTab !== 'requests' ? 'outline' : ''}`}
+            style={{ width: 'auto', background: activeTab === 'requests' ? '' : 'transparent', color: activeTab === 'requests' ? '#fff' : 'var(--primary-indigo)' }}
+            onClick={() => setActiveTab('requests')}
+          >
+            <ClipboardList size={18} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'text-bottom' }} /> Requests
+          </button>
+          <button 
+            className={`btn-primary ${activeTab !== 'inventory' ? 'outline' : ''}`}
+            style={{ width: 'auto', background: activeTab === 'inventory' ? '' : 'transparent', color: activeTab === 'inventory' ? '#fff' : 'var(--primary-indigo)' }}
+            onClick={() => setActiveTab('inventory')}
+          >
+            <Package size={18} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'text-bottom' }} /> Inventory Mgt
+          </button>
+        </div>
+
+        {/* Low Stock Alerts */}
+        {lowStock.length > 0 && (
+          <div style={{ marginBottom: '2rem', padding: '1rem', background: '#fee2e2', borderRadius: '12px', border: '1px solid #fca5a5' }}>
+            <h3 style={{ color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}>
+              <AlertTriangle size={18} /> Low Stock Alerts
+            </h3>
+            <ul style={{ marginTop: '0.5rem', marginLeft: '1.5rem', fontSize: '0.875rem', color: '#991b1b' }}>
+              {lowStock.map(item => (
+                <li key={item.id}>{item.name} ({item.availableQuantity} {item.unit} left) - below min {item.minimumQuantity}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {activeTab === 'requests' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>All Requests</h2>
+            <div className="glass-panel data-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Student</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map(req => (
+                    <tr key={req.requestId}>
+                      <td>#{req.requestId}</td>
+                      <td>{req.studentEmail}</td>
+                      <td>{new Date(req.createdAt).toLocaleDateString()}</td>
+                      <td><span className={`status-chip status-${req.status}`}>{req.status}</span></td>
+                      <td>
+                        {req.status === 'PENDING' && (
+                          <>
+                            <button 
+                              className="action-btn success" 
+                              title="Approve" 
+                              onClick={() => approveRequest(req.requestId)}
+                              disabled={processingId === req.requestId}
+                              style={{ opacity: processingId === req.requestId ? 0.5 : 1, cursor: processingId === req.requestId ? 'not-allowed' : 'pointer' }}
+                            >
+                              {processingId === req.requestId ? <div className="spinner" style={{width: 18, height: 18, borderWidth: 2}}></div> : <CheckCircle size={18}/>}
+                            </button>
+                            <button 
+                              className="action-btn danger" 
+                              title="Reject" 
+                              onClick={() => openRejectModal(req.requestId)}
+                              disabled={processingId === req.requestId}
+                              style={{ opacity: processingId === req.requestId ? 0.5 : 1, cursor: processingId === req.requestId ? 'not-allowed' : 'pointer' }}
+                            >
+                              <XCircle size={18}/>
+                            </button>
+                          </>
+                        )}
+                        {req.status === 'APPROVED' && (
+                          <button className="action-btn" style={{ color: 'var(--primary-indigo)' }} title="Fulfill" onClick={() => fulfillRequest(req.requestId)}><Archive size={18}/></button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'inventory' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Inventory Items</h2>
+              <button className="btn-primary" style={{ width: 'auto' }} onClick={() => setShowAddModal(true)}>
+                + Add Item
+              </button>
+            </div>
+            <div className="glass-panel data-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Stock</th>
+                    <th>Min</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventory.map((item, index) => (
+                    <tr key={item.id}>
+                      <td>#{index + 1}</td>
+                      <td style={{ fontWeight: 500 }}>{item.name}</td>
+                      <td>{item.category}</td>
+                      <td style={{ color: item.availableQuantity <= item.minimumQuantity ? '#dc2626' : 'inherit' }}>
+                        {item.availableQuantity} {item.unit}
+                      </td>
+                      <td>{item.minimumQuantity}</td>
+                      <td>
+                        <button className="action-btn" style={{ background: 'transparent', border: 'none', color: '#2563eb', cursor: 'pointer', marginRight: '0.5rem' }} title="Edit" onClick={() => openEditModal(item)}>
+                          <Edit2 size={18} />
+                        </button>
+                        <button className="action-btn danger" style={{ background: 'transparent', border: 'none', color: '#dc2626', cursor: 'pointer' }} title="Delete" onClick={() => deleteItem(item.id)}>
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+      </div>
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content">
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Reject Request</h3>
+            <div className="input-group">
+              <label>Reason for Rejection</label>
+              <textarea 
+                className="input-field" 
+                rows="3" 
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="Item out of budget..."
+              ></textarea>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button className="btn-primary outline" style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid #d1d5db', width: 'auto' }} onClick={() => setShowRejectModal(false)}>Cancel</button>
+              <button className="btn-primary" style={{ width: 'auto', background: '#dc2626' }} onClick={confirmReject}>Confirm Rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Item Modal */}
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Add New Inventory Item</h3>
+            <form onSubmit={handleAddItem}>
+              <div className="input-group">
+                <label>Item Name</label>
+                <input 
+                  type="text" className="input-field" required
+                  value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})}
+                  placeholder="e.g. A4 Paper Rim"
+                />
+              </div>
+              <div className="input-group">
+                <label>Category</label>
+                <input 
+                  type="text" className="input-field" required
+                  value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})}
+                  placeholder="e.g. Paper"
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Initial Stock</label>
+                  <input 
+                    type="number" className="input-field" required min="0"
+                    value={newItem.availableQuantity} onChange={e => setNewItem({...newItem, availableQuantity: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Min Threshold</label>
+                  <input 
+                    type="number" className="input-field" required min="0"
+                    value={newItem.minimumQuantity} onChange={e => setNewItem({...newItem, minimumQuantity: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Unit</label>
+                  <input 
+                    type="text" className="input-field" required
+                    value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})}
+                    placeholder="e.g. pcs, boxes"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-primary outline" style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid #d1d5db', width: 'auto' }} onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ width: 'auto' }}>Save Item</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Edit Inventory Item</h3>
+            <form onSubmit={handleEditItem}>
+              <div className="input-group">
+                <label>Item Name</label>
+                <input 
+                  type="text" className="input-field" required
+                  value={editItem.name} onChange={e => setEditItem({...editItem, name: e.target.value})}
+                  placeholder="e.g. A4 Paper Rim"
+                />
+              </div>
+              <div className="input-group">
+                <label>Category</label>
+                <input 
+                  type="text" className="input-field" required
+                  value={editItem.category} onChange={e => setEditItem({...editItem, category: e.target.value})}
+                  placeholder="e.g. Paper"
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Stock</label>
+                  <input 
+                    type="number" className="input-field" required min="0"
+                    value={editItem.availableQuantity} onChange={e => setEditItem({...editItem, availableQuantity: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Min Threshold</label>
+                  <input 
+                    type="number" className="input-field" required min="0"
+                    value={editItem.minimumQuantity} onChange={e => setEditItem({...editItem, minimumQuantity: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>Unit</label>
+                  <input 
+                    type="text" className="input-field" required
+                    value={editItem.unit} onChange={e => setEditItem({...editItem, unit: e.target.value})}
+                    placeholder="e.g. pcs, boxes"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="btn-primary outline" style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid #d1d5db', width: 'auto' }} onClick={() => setShowEditModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ width: 'auto' }}>Update Item</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminDashboard;
