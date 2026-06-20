@@ -115,9 +115,20 @@ export const AuthProvider = ({ children }) => {
    * Logs the user out by clearing the JWT from storage and resetting state.
    * The calling component is responsible for redirecting to /login.
    */
-  const logout = () => {
+  const logout = async () => {
+    try {
+      if (user && user.email) {
+        await api.post('/auth/logout', { email: user.email });
+      }
+    } catch (e) {
+      console.error('Logout logging failed', e);
+    }
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     setUser(null);
+    delete api.defaults.headers.common['Authorization'];
+    window.location.href = '/login';
   };
 
   return (

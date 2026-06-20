@@ -1711,6 +1711,7 @@ Purpose:
 
 - Active student-facing dashboard.
 - Combines inventory browsing and personal request history into one page with tabs.
+- Supports sorting requests and mapping item IDs to item names using inventory data.
 
 State:
 
@@ -1756,7 +1757,9 @@ UI flow:
 Purpose:
 
 - Active administrator dashboard.
-- Combines request operations and inventory operations into one page with tabs and modal workflows.
+- Combines request operations and inventory operations into one page with tabs and modal 
+workflows.
+- Supports sorting requests and inventory mapping for item names.
 
 State:
 
@@ -1905,7 +1908,7 @@ Purpose:
 
 Important functions:
 
-- `load()`: fetches items
+- `load()`: fetches items with sorting capabilities
 - `openAdd()`: opens create modal
 - `openEdit(item)`: opens edit modal
 - `save(e)`: create or update item
@@ -1926,6 +1929,7 @@ Purpose:
 Important functions:
 
 - `fetchRequests()`
+- Request sorting and inventory mapping
 - `handleApprove(id)`
 - `handleReject(id)`
 
@@ -1973,7 +1977,7 @@ Important functions:
 
 - inline `badge(status)` helper
 - initial `useEffect` load
-- filter and pagination logic
+- filter, sorting, item name mapping, and pagination logic
 
 Current status:
 
@@ -1989,6 +1993,7 @@ Important functions:
 
 - inline `badge(status)` helper
 - `load()`
+- item name mapping and request sorting
 - `action(fn, successMsg)`
 - `approve(id)`
 - `fulfill(id)`
@@ -2161,6 +2166,7 @@ What it does:
 
 - Creates `stationery_inventory`
 - Creates `stationery_items` table
+- Creates `inventory_audit_logs` table
 - Adds category index
 
 ### File: `mysql/request-db-init.sql`
@@ -2189,6 +2195,8 @@ How it is enabled:
 
 - `@EnableJpaAuditing` on application class
 - `@EntityListeners(AuditingEntityListener.class)` on entity classes
+
+*Note: The project also uses custom database-level audit log tables (`inventory_audit_logs`, `audit_logs`, etc.) and corresponding entities (`AuthAuditLog`, `InventoryAuditLog`, `AuditLog`) to track business events.*
 
 ## 8. DevOps, Deployment, and Quality Files
 

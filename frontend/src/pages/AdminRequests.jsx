@@ -10,6 +10,8 @@ export default function AdminRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [inventoryMap, setInventoryMap] = useState({});
+  const [sortBy, setSortBy] = useState('dateDesc');
   const [busy, setBusy] = useState(null);
   const [rejectId, setRejectId] = useState(null);
   const [reason, setReason] = useState('');
@@ -18,7 +20,14 @@ export default function AdminRequests() {
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
-  useEffect(() => { load(); }, []);
+  const loadInventory = async () => {
+    try {
+      const res = await api.get('/inventory?page=0&size=1000');
+      const map = {};
+      res.data.content.forEach(i => map[i.id] = i.name);
+      setInventoryMap(map);
+    } catch { console.error('Failed to load inventory for mapping'); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -28,6 +37,8 @@ export default function AdminRequests() {
     } catch { setMsg({ text: 'Failed to load requests.', type: 'error' }); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => { load(); loadInventory(); }, []);
 
   const action = async (fn, successMsg) => {
     try { await fn(); setMsg({ text: successMsg, type: 'success' }); load(); }
@@ -44,9 +55,20 @@ export default function AdminRequests() {
   };
 
   const shown = (filter === 'ALL' ? requests : requests.filter(r => r.status === filter)).sort((a, b) => {
-    if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
-    if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
-    return new Date(b.createdAt) - new Date(a.createdAt);
+    if (sortBy === 'dateDesc') {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    } else if (sortBy === 'dateAsc') {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    } else if (sortBy === 'status') {
+      if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+      if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
+      return a.status.localeCompare(b.status);
+    } else if (sortBy === 'itemName') {
+      const nameA = a.items && a.items.length > 0 ? (inventoryMap[a.items[0].itemId] || '') : '';
+      const nameB = b.items && b.items.length > 0 ? (inventoryMap[b.items[0].itemId] || '') : '';
+      return nameA.localeCompare(nameB);
+    }
+    return 0;
   });
   const paginatedShown = shown.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
@@ -63,50 +85,60 @@ export default function AdminRequests() {
         {['ALL','PENDING','APPROVED','REJECTED','FULFILLED'].map(s => (
           <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary-admin' : 'btn-ghost'}`} onClick={() => { setFilter(s); setPage(1); }}>{s}</button>
         ))}
-        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={load}>🔄</button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '4px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px' }}>
+            <option value="dateDesc">Date (Newest)</option>
+            <option value="dateAsc">Date (Oldest)</option>
+            <option value="status">Status</option>
+            <option value="itemName">Item Name (A-Z)</option>
+          </select>
+          <button className="btn btn-ghost btn-sm" onClick={load}>🔄</button>
+        </div>
       </div>
 
       <div className="card" style={{ padding: 0 }}>
         {loading ? <div className="spinner-wrap"><div className="spinner" /></div>
           : shown.length === 0 ? <div className="empty-state"><div className="empty-state-icon">📭</div><p>No requests.</p></div>
-          : <div className="table-wrapper">
-              <table>
-                <thead><tr><th>ID</th><th>Student</th><th>Items</th><th>Status</th><th>Date & Time</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {paginatedShown.map(r => (
-                    <tr key={r.requestId}>
-                      <td style={{ fontFamily: 'monospace', fontSize: 12 }}>#{r.requestId}</td>
-                      <td>{r.studentEmail}</td>
-                      <td><button className="btn btn-ghost btn-sm" onClick={() => setDetail(r)}>👁 {r.items?.length}</button></td>
-                      <td>{badge(r.status)}</td>
-                      <td style={{ fontSize: 12 }}>{new Date(r.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {r.status === 'PENDING' && <>
-                            <button className="btn btn-success btn-sm" disabled={busy === r.requestId} onClick={() => approve(r.requestId)}>
-                              {busy === r.requestId ? '…' : '✅ Approve'}
-                            </button>
-                            <button className="btn btn-danger btn-sm" onClick={() => { setRejectId(r.requestId); setReason(''); }}>❌ Reject</button>
-                          </>}
-                          {r.status === 'APPROVED' && (
-                            <button className="btn btn-warning btn-sm" disabled={busy === r.requestId} onClick={() => fulfill(r.requestId)}>
-                              {busy === r.requestId ? '…' : '📦 Fulfill'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {Math.ceil(shown.length / itemsPerPage) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center', padding: '0 16px 16px' }}>
-                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</button>
-                <span style={{ fontSize: '13px' }}>Page {page} of {Math.ceil(shown.length / itemsPerPage)}</span>
-                <button className="btn btn-ghost btn-sm" disabled={page === Math.ceil(shown.length / itemsPerPage)} onClick={() => setPage(p => p + 1)}>Next</button>
+          : <>
+              <div className="table-wrapper">
+                <table>
+                  <thead><tr><th>ID</th><th>Student</th><th>Items</th><th>Status</th><th>Date & Time</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {paginatedShown.map(r => (
+                      <tr key={r.requestId}>
+                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>#{r.requestId}</td>
+                        <td>{r.studentEmail}</td>
+                        <td><button className="btn btn-ghost btn-sm" onClick={() => setDetail(r)}>👁 {r.items?.length}</button></td>
+                        <td>{badge(r.status)}</td>
+                        <td style={{ fontSize: 12 }}>{new Date(r.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {r.status === 'PENDING' && <>
+                              <button className="btn btn-success btn-sm" disabled={busy === r.requestId} onClick={() => approve(r.requestId)}>
+                                {busy === r.requestId ? '…' : '✅ Approve'}
+                              </button>
+                              <button className="btn btn-danger btn-sm" onClick={() => { setRejectId(r.requestId); setReason(''); }}>❌ Reject</button>
+                            </>}
+                            {r.status === 'APPROVED' && (
+                              <button className="btn btn-warning btn-sm" disabled={busy === r.requestId} onClick={() => fulfill(r.requestId)}>
+                                {busy === r.requestId ? '…' : '📦 Fulfill'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+              {Math.ceil(shown.length / itemsPerPage) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center', padding: '0 16px 16px' }}>
+                  <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</button>
+                  <span style={{ fontSize: '13px' }}>Page {page} of {Math.ceil(shown.length / itemsPerPage)}</span>
+                  <button className="btn btn-ghost btn-sm" disabled={page === Math.ceil(shown.length / itemsPerPage)} onClick={() => setPage(p => p + 1)}>Next</button>
+                </div>
+              )}
+            </>
         }
       </div>
 
@@ -143,7 +175,7 @@ export default function AdminRequests() {
             {detail.rejectionReason && <div className="alert alert-error">Reason: {detail.rejectionReason}</div>}
             <ul className="request-items-list">
               {detail.items?.map((item, i) => (
-                <li key={i}><span>Item ID: {item.itemId}</span><span className="badge badge-admin">× {item.quantity}</span></li>
+                <li key={i}><span>{inventoryMap[item.itemId] || `Item ID: ${item.itemId}`}</span><span className="badge badge-admin">× {item.quantity}</span></li>
               ))}
             </ul>
           </div>

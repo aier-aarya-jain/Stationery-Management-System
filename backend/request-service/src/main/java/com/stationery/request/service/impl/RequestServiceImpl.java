@@ -105,7 +105,8 @@ public class RequestServiceImpl implements RequestService {
         }
 
         StationeryRequest saved = requestRepository.save(request);
-        logAction("SUBMIT", studentEmail, "Submitted request " + saved.getRequestId());
+        String itemDetails = dto.getItems().stream().map(i -> "Item ID " + i.getItemId() + " (Qty: " + i.getQuantity() + ")").collect(Collectors.joining(", "));
+        logAction("SUBMIT", studentEmail, "Submitted request " + saved.getRequestId() + " with items: " + itemDetails);
         log.info("Request submitted successfully by {}", studentEmail);
         return mapToDto(saved);
     }
@@ -279,6 +280,85 @@ public class RequestServiceImpl implements RequestService {
         return requestRepository.findAll(pageable).map(this::mapToDto);
     }
 
+    @Override
+    public java.util.List<com.stationery.request.dto.RequestAuditLogDto> getAuditLogs() {
+        return auditLogRepository.findAll().stream().map(l -> {
+            com.stationery.request.dto.RequestAuditLogDto dto = new com.stationery.request.dto.RequestAuditLogDto();
+            dto.setLogId(l.getId());
+            dto.setAction(l.getAction());
+            dto.setPerformedBy(l.getPerformedBy());
+            dto.setDetails(l.getDetails());
+            dto.setTimestamp(l.getTimestamp());
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @CircuitBreaker(name = "inventoryService", fallbackMethod = "approveItemFallback")
+    public RequestResponseDto approveItem(Long requestId, Long itemId, String adminEmail, String token) {
+        StationeryRequest request = getRequestById(requestId);
+        RequestItem item = request.getItems().stream().filter(i -> i.getItemId().equals(itemId)).findFirst()
+                .orElseThrow(() -> new BusinessException("Item not found in request"));
+
+        if (item.getStatus() != RequestStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING items can be approved.");
+        }
+
+        try {
+            inventoryClient.deductQuantity(token, item.getItemId(), item.getQuantity());
+        } catch (feign.FeignException.NotFound e) {
+            throw new BusinessException("Item not found in inventory (ID: " + item.getItemId() + ")");
+        } catch (feign.FeignException.BadRequest e) {
+            throw new BusinessException("Insufficient stock or invalid request for item (ID: " + item.getItemId() + ")");
+        }
+
+        item.setStatus(RequestStatus.APPROVED);
+        checkAndUpdateRequestStatus(request);
+        StationeryRequest saved = requestRepository.save(request);
+        logAction("APPROVE_ITEM", adminEmail, "Approved item " + itemId + " for request " + requestId);
+        return mapToDto(saved);
+    }
+
+    public RequestResponseDto approveItemFallback(Long requestId, Long itemId, String adminEmail, String token, Throwable t) {
+        if (t instanceof BusinessException) {
+            throw (BusinessException) t;
+        }
+        log.error("Circuit Breaker open for request {} item {}: {}", requestId, itemId, t.getMessage());
+        throw new RuntimeException("Inventory Service is currently unavailable. Cannot approve item at this time.");
+    }
+
+    @Override
+    public RequestResponseDto rejectItem(Long requestId, Long itemId, String adminEmail, String reason) {
+        StationeryRequest request = getRequestById(requestId);
+        RequestItem item = request.getItems().stream().filter(i -> i.getItemId().equals(itemId)).findFirst()
+                .orElseThrow(() -> new BusinessException("Item not found in request"));
+
+        if (item.getStatus() != RequestStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING items can be rejected.");
+        }
+
+        item.setStatus(RequestStatus.REJECTED);
+        checkAndUpdateRequestStatus(request);
+        StationeryRequest saved = requestRepository.save(request);
+        logAction("REJECT_ITEM", adminEmail, "Rejected item " + itemId + " for request " + requestId + " Reason: " + reason);
+        return mapToDto(saved);
+    }
+
+    private void checkAndUpdateRequestStatus(StationeryRequest request) {
+        long pendingCount = request.getItems().stream().filter(i -> i.getStatus() == RequestStatus.PENDING).count();
+        if (pendingCount == 0) {
+            long approvedCount = request.getItems().stream().filter(i -> i.getStatus() == RequestStatus.APPROVED).count();
+            if (approvedCount == request.getItems().size()) {
+                request.setStatus(RequestStatus.APPROVED);
+            } else if (approvedCount > 0) {
+                // We'll use APPROVED for partial as well to keep it simple and fulfillable.
+                request.setStatus(RequestStatus.APPROVED);
+            } else {
+                request.setStatus(RequestStatus.REJECTED);
+            }
+        }
+    }
+
     // -------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------
@@ -316,8 +396,10 @@ public class RequestServiceImpl implements RequestService {
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setItems(entity.getItems().stream().map(i -> {
             RequestItemDto iDto = new RequestItemDto();
+            iDto.setId(i.getId());
             iDto.setItemId(i.getItemId());
             iDto.setQuantity(i.getQuantity());
+            iDto.setStatus(i.getStatus());
             return iDto;
         }).collect(Collectors.toList()));
         return dto;

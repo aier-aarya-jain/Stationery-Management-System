@@ -15,29 +15,33 @@ const StudentDashboard = () => {
   const [invPage, setInvPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Details Modal state
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   const links = [
     { label: 'Inventory', path: '/student', icon: Home },
   ];
-
-  useEffect(() => {
-    fetchInventory();
-    fetchRequests();
-  }, []);
 
   const fetchInventory = async () => {
     try {
       const res = await api.get('/inventory?size=100');
       setInventory(res.data.content || []);
-    } catch (error) {}
+    } catch (error) { console.error(error); }
   };
 
   const fetchRequests = async () => {
     try {
       const res = await api.get('/requests/me?size=100');
       setRequests(res.data.content || []);
-    } catch (error) {}
+    } catch (error) { console.error(error); }
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchInventory();
+    fetchRequests();
+  }, []);
 
   const updateCart = (itemId, delta) => {
     setCart(prev => {
@@ -68,7 +72,12 @@ const StudentDashboard = () => {
       setCart({});
       fetchRequests();
       setActiveTab('requests');
-    } catch (error) {}
+    } catch (error) { console.error(error); }
+  };
+
+  const openDetailsModal = (req) => {
+    setSelectedRequest(req);
+    setShowDetailsModal(true);
   };
 
   return (
@@ -167,6 +176,12 @@ const StudentDashboard = () => {
                       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                         {new Date(req.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} • {req.items?.length || 0} items
                       </p>
+                      <button 
+                        onClick={() => openDetailsModal(req)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--primary-indigo)', cursor: 'pointer', padding: 0, marginTop: '0.5rem', fontSize: '0.875rem' }}
+                      >
+                        View Items
+                      </button>
                       {req.rejectionReason && (
                         <p style={{ fontSize: '0.875rem', color: '#dc2626', marginTop: '0.5rem' }}>
                           Reason: {req.rejectionReason}
@@ -189,6 +204,33 @@ const StudentDashboard = () => {
         )}
 
       </div>
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedRequest && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Request Details #{selectedRequest.requestId}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {selectedRequest.items?.map(item => {
+                const invItem = inventory.find(i => i.id === item.itemId) || {};
+                return (
+                  <div key={item.id || item.itemId} style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ fontWeight: 600 }}>{invItem.name || `Item #${item.itemId}`}</h4>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Requested Quantity: {item.quantity}</p>
+                    </div>
+                    <span className={`status-chip status-${(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button className="btn-primary" style={{ width: 'auto' }} onClick={() => setShowDetailsModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

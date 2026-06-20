@@ -10,6 +10,7 @@ import com.stationery.request.entity.StationeryRequest;
 import com.stationery.request.entity.AuditLog;
 import com.stationery.request.repository.AuditLogRepository;
 import com.stationery.request.repository.RequestRepository;
+import com.stationery.request.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,9 @@ public class RequestServiceImplTest {
 
     @Mock
     private InventoryClient inventoryClient;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private RequestServiceImpl requestService;

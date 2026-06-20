@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,9 +63,10 @@ public class InventoryController {
     public ResponseEntity<Page<StationeryItemDto>> getAllItems(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
-            @RequestParam(value = "sortBy", defaultValue = "name") String sortBy) {
+            @RequestParam(value = "sortBy", defaultValue = "name") String sortBy,
+            Authentication auth) {
         log.info("Fetching all items. Page: {}, Size: {}, SortBy: {}", page, size, sortBy);
-        return ResponseEntity.ok(inventoryService.getAllItems(page, size, sortBy));
+        return ResponseEntity.ok(inventoryService.getAllItems(page, size, sortBy, auth != null ? auth.getName() : "Anonymous", auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"))));
     }
 
     /**
@@ -81,8 +83,8 @@ public class InventoryController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<StationeryItemDto> addItem(@Valid @RequestBody StationeryItemDto dto) {
-        return new ResponseEntity<>(inventoryService.addItem(dto), HttpStatus.CREATED);
+    public ResponseEntity<StationeryItemDto> addItem(@Valid @RequestBody StationeryItemDto dto, Authentication auth) {
+        return new ResponseEntity<>(inventoryService.addItem(dto, auth.getName()), HttpStatus.CREATED);
     }
 
     /**
@@ -100,8 +102,8 @@ public class InventoryController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<StationeryItemDto> updateItem(@PathVariable("id") Long id, @Valid @RequestBody StationeryItemDto dto) {
-        return ResponseEntity.ok(inventoryService.updateItem(id, dto));
+    public ResponseEntity<StationeryItemDto> updateItem(@PathVariable("id") Long id, @Valid @RequestBody StationeryItemDto dto, Authentication auth) {
+        return ResponseEntity.ok(inventoryService.updateItem(id, dto, auth.getName()));
     }
 
     /**
@@ -117,8 +119,8 @@ public class InventoryController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Void> deleteItem(@PathVariable("id") Long id) {
-        inventoryService.deleteItem(id);
+    public ResponseEntity<Void> deleteItem(@PathVariable("id") Long id, Authentication auth) {
+        inventoryService.deleteItem(id, auth.getName());
         return ResponseEntity.noContent().build();
     }
 
@@ -158,9 +160,22 @@ public class InventoryController {
      */
     @PostMapping("/{id}/deduct")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Void> deductQuantity(@PathVariable("id") Long id, @RequestParam("quantity") Integer quantity) {
-        inventoryService.deductQuantity(id, quantity);
+    public ResponseEntity<Void> deductQuantity(@PathVariable("id") Long id, @RequestParam("quantity") Integer quantity, Authentication auth) {
+        inventoryService.deductQuantity(id, quantity, auth.getName());
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * GET /api/inventory/logs
+     *
+     * Returns a list of inventory audit logs.
+     *
+     * Access: ROLE_ADMIN only
+     */
+    @GetMapping("/logs")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<java.util.List<com.stationery.inventory.dto.InventoryAuditLogDto>> getAuditLogs() {
+        return ResponseEntity.ok(inventoryService.getAuditLogs());
     }
 }
 

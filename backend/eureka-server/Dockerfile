@@ -1,14 +1,13 @@
-# Use official OpenJDK 17 image
-FROM eclipse-temurin:17-jdk-alpine
-
-# Set working directory
+# Build stage
+FROM maven:3.9.6-eclipse-temurin-17-alpine AS build
 WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copy the compiled jar file to the container
-COPY target/*.jar app.jar
-
-# Expose Eureka port
+# Run stage
+FROM eclipse-temurin:17-jdk-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8761
-
-# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

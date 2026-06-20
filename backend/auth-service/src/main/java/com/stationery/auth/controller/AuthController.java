@@ -89,4 +89,18 @@ public class AuthController {
         AuthResponse response = authService.refreshToken(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody java.util.Map<String, String> payload) {
+        String email = payload.get("email");
+        if (email != null) {
+            authService.logout(email);
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/logs")
+    public ResponseEntity<java.util.List<com.stationery.auth.dto.AuthAuditLogDto>> getLogs() {
+        return ResponseEntity.ok(authService.getAuditLogs());
+    }
 }

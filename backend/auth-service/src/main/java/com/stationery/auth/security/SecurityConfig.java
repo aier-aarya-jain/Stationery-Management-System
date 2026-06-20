@@ -70,7 +70,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints — token does not exist yet when hitting these
-                .requestMatchers("/api/auth/register", "/api/auth/login", "/actuator/**").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/logs", "/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
             // Do not create or use HTTP sessions — every request is independently authenticated via JWT

@@ -51,32 +51,30 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final com.stationery.auth.repository.AuthAuditLogRepository authAuditLogRepository;
 
     public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
                            AuthenticationManager authenticationManager, JwtUtil jwtUtil,
-                           CustomUserDetailsService userDetailsService) {
+                           CustomUserDetailsService userDetailsService,
+                           com.stationery.auth.repository.AuthAuditLogRepository authAuditLogRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.authAuditLogRepository = authAuditLogRepository;
     }
 
-    /**
-     * Registers a new user in the system.
-     *
-     * Business Rules:
-     * - Email must be unique across all accounts (admin or student)
-     * - Password is BCrypt-hashed before storage; plaintext is never persisted
-     * - User is automatically logged in after registration (token is returned)
-     *
-     * @param request Registration details including email, password, fullName, and role
-     * @return AuthResponse containing the JWT, email, fullName, and role
-     * @throws DuplicateResourceException if the email is already registered
-     */
+    private void logAction(String action, String email, String details) {
+        com.stationery.auth.entity.AuthAuditLog logEntry = new com.stationery.auth.entity.AuthAuditLog();
+        logEntry.setAction(action);
+        logEntry.setEmail(email);
+        logEntry.setDetails(details);
+        authAuditLogRepository.save(logEntry);
+    }
+
     @Override
     public AuthResponse register(RegisterRequest request) {
-        // Business Rule: Emails must be globally unique across all roles
         if (userRepository.existsByEmail(request.getEmail())) {
             log.error("Registration failed: Email {} is already taken", request.getEmail());
             throw new DuplicateResourceException("Email is already taken");
@@ -87,34 +85,20 @@ public class AuthServiceImpl implements AuthService {
         user.setFullName(request.getFullName());
         user.setRole(request.getRole());
 
-        // Password is BCrypt-hashed before saving — plaintext is never stored
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-
         userRepository.save(user);
 
-        // Auto-issue token on registration so the user is logged in immediately
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String token = jwtUtil.generateToken(userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails);
 
+        logAction("REGISTER", user.getEmail(), "User registered with role " + user.getRole());
         log.info("User registered successfully with email: {}", request.getEmail());
         return new AuthResponse(token, refreshToken, user.getEmail(), user.getFullName(), user.getRole());
     }
 
-    /**
-     * Authenticates an existing user and issues a JWT.
-     *
-     * Delegates credential verification to Spring's AuthenticationManager,
-     * which internally loads the user via CustomUserDetailsService and
-     * verifies the BCrypt password hash.
-     *
-     * @param request Login credentials (email and password)
-     * @return AuthResponse containing a fresh JWT, email, fullName, and role
-     * @throws org.springframework.security.authentication.BadCredentialsException if credentials are invalid
-     */
     @Override
     public AuthResponse login(AuthRequest request) {
-        // Spring Security's AuthenticationManager handles password comparison against the BCrypt hash
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
@@ -124,6 +108,7 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtUtil.generateToken(userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails);
 
+        logAction("LOGIN", user.getEmail(), "User logged in");
         log.info("User logged in successfully with email: {}", request.getEmail());
         return new AuthResponse(token, refreshToken, user.getEmail(), user.getFullName(), user.getRole());
     }
@@ -141,5 +126,23 @@ public class AuthServiceImpl implements AuthService {
             return new AuthResponse(newToken, newRefreshToken, user.getEmail(), user.getFullName(), user.getRole());
         }
         throw new RuntimeException("Invalid refresh token");
+    }
+
+    @Override
+    public void logout(String email) {
+        logAction("LOGOUT", email, "User logged out");
+    }
+
+    @Override
+    public java.util.List<com.stationery.auth.dto.AuthAuditLogDto> getAuditLogs() {
+        return authAuditLogRepository.findAll().stream().map(l -> {
+            com.stationery.auth.dto.AuthAuditLogDto dto = new com.stationery.auth.dto.AuthAuditLogDto();
+            dto.setId(l.getId());
+            dto.setAction(l.getAction());
+            dto.setEmail(l.getEmail());
+            dto.setDetails(l.getDetails());
+            dto.setCreatedAt(l.getCreatedAt());
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
     }
 }

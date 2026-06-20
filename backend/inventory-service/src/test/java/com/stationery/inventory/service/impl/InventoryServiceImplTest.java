@@ -3,6 +3,7 @@ package com.stationery.inventory.service.impl;
 import com.stationery.inventory.dto.StationeryItemDto;
 import com.stationery.inventory.entity.StationeryItem;
 import com.stationery.inventory.exception.ResourceNotFoundException;
+import com.stationery.inventory.repository.InventoryAuditLogRepository;
 import com.stationery.inventory.repository.StationeryItemRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,9 @@ public class InventoryServiceImplTest {
 
     @Mock
     private StationeryItemRepository repository;
+
+    @Mock
+    private InventoryAuditLogRepository auditLogRepository;
 
     @InjectMocks
     private InventoryServiceImpl inventoryService;
@@ -53,7 +57,7 @@ public class InventoryServiceImplTest {
     void addItem_Successful() {
         when(repository.save(any(StationeryItem.class))).thenReturn(item);
 
-        StationeryItemDto result = inventoryService.addItem(dto);
+        StationeryItemDto result = inventoryService.addItem(dto, "admin@test.com");
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
@@ -82,7 +86,7 @@ public class InventoryServiceImplTest {
     void deductQuantity_Successful() {
         when(repository.findById(anyLong())).thenReturn(Optional.of(item));
 
-        inventoryService.deductQuantity(1L, 10);
+        inventoryService.deductQuantity(1L, 10, "admin@test.com");
 
         assertEquals(90, item.getAvailableQuantity());
         verify(repository, times(1)).save(item);
@@ -92,7 +96,7 @@ public class InventoryServiceImplTest {
     void deductQuantity_InsufficientStock_ThrowsException() {
         when(repository.findById(anyLong())).thenReturn(Optional.of(item));
 
-        assertThrows(IllegalArgumentException.class, () -> inventoryService.deductQuantity(1L, 110));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.deductQuantity(1L, 110, "admin@test.com"));
         verify(repository, never()).save(any(StationeryItem.class));
     }
 }

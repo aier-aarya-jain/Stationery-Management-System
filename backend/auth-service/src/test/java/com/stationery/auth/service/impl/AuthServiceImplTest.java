@@ -6,6 +6,7 @@ import com.stationery.auth.dto.RegisterRequest;
 import com.stationery.auth.entity.User;
 import com.stationery.auth.exception.DuplicateResourceException;
 import com.stationery.auth.repository.UserRepository;
+import com.stationery.auth.repository.AuthAuditLogRepository;
 import com.stationery.auth.security.CustomUserDetailsService;
 import com.stationery.auth.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,9 @@ public class AuthServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private AuthAuditLogRepository authAuditLogRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;

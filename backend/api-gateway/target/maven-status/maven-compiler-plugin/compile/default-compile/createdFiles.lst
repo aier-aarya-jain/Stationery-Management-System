@@ -1,2 +1,2 @@
-com/stationery/gateway/ApiGatewayApplication.class
-com/stationery/gateway/config/CorsConfig.class
+com\stationery\gateway\config\CorsConfig.class
+com\stationery\gateway\ApiGatewayApplication.class

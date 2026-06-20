@@ -12,10 +12,6 @@ const Requests = () => {
   const [processingId, setProcessingId] = useState(null);
   const { user } = useContext(AuthContext);
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
   const fetchRequests = async () => {
     try {
       const endpoint = user.role === 'ROLE_ADMIN' ? '/requests?size=100' : '/requests/me?size=100';
@@ -25,6 +21,10 @@ const Requests = () => {
       console.error(err);
     }
   };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
 
   const handleApprove = async (id) => {
     setProcessingId(id);

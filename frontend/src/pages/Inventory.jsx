@@ -18,8 +18,6 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
 
-  useEffect(() => { load(); }, []);
-
   const load = async () => {
     setLoading(true);
     try {
@@ -27,6 +25,8 @@ export default function Inventory() {
       setItems(res.data.content || []);
     } finally { setLoading(false); }
   };
+
+  useEffect(() => { load(); }, []);
 
   const openAdd = () => { setEdit(null); setForm({ name: '', category: 'Writing', unit: '', availableQuantity: '', minimumQuantity: '' }); setModal(true); };
   const openEdit = (item) => { setEdit(item); setForm({ name: item.name, category: item.category, unit: item.unit, availableQuantity: item.availableQuantity, minimumQuantity: item.minimumQuantity }); setModal(true); };

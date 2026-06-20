@@ -174,6 +174,26 @@ public class RequestController {
         return ResponseEntity.ok(requestService.rejectRequest(id, auth.getName(), reason));
     }
 
+    @PostMapping("/{id}/items/{itemId}/approve")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<RequestResponseDto> approveItem(
+            @PathVariable Long id,
+            @PathVariable Long itemId,
+            Authentication auth,
+            @RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(requestService.approveItem(id, itemId, auth.getName(), token));
+    }
+
+    @PostMapping("/{id}/items/{itemId}/reject")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<RequestResponseDto> rejectItem(
+            @PathVariable Long id,
+            @PathVariable Long itemId,
+            @RequestParam String reason,
+            Authentication auth) {
+        return ResponseEntity.ok(requestService.rejectItem(id, itemId, auth.getName(), reason));
+    }
+
     /**
      * POST /api/requests/{id}/fulfill
      *
@@ -193,6 +213,12 @@ public class RequestController {
             @PathVariable Long id,
             Authentication auth) {
         return ResponseEntity.ok(requestService.fulfillRequest(id, auth.getName()));
+    }
+
+    @GetMapping("/logs")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<java.util.List<com.stationery.request.dto.RequestAuditLogDto>> getLogs() {
+        return ResponseEntity.ok(requestService.getAuditLogs());
     }
 }
 

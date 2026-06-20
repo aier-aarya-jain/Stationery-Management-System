@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { LayoutDashboard, Package, ClipboardList, AlertTriangle, CheckCircle, XCircle, Archive, Trash2, Edit2 } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, AlertTriangle, CheckCircle, XCircle, Archive, Trash2, Edit2, FileText } from 'lucide-react';
 import api from '../api/axiosInstance';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
@@ -10,17 +10,23 @@ const AdminDashboard = () => {
   const [lowStock, setLowStock] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   
   const [reqPage, setReqPage] = useState(1);
   const [invPage, setInvPage] = useState(1);
+  const [logsPage, setLogsPage] = useState(1);
   const itemsPerPage = 10;
 
   // Modal state
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectId, setRejectId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  // Details Modal state
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Add Item Modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -53,15 +59,28 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [invRes, lowStockRes, reqRes] = await Promise.all([
-        api.get('/inventory?size=100'),
-        api.get('/inventory/low-stock'),
-        api.get('/requests?size=100')
+      const [invRes, lowStockRes, reqRes, invLogsRes, reqLogsRes, authLogsRes] = await Promise.all([
+        api.get('/inventory?size=100').catch(e => { console.error(e); return { data: { content: [] } }; }),
+        api.get('/inventory/low-stock').catch(e => { console.error(e); return { data: { content: [] } }; }),
+        api.get('/requests?size=100').catch(e => { console.error(e); return { data: { content: [] } }; }),
+        api.get('/inventory/logs').catch(() => ({ data: [] })),
+        api.get('/requests/logs').catch(() => ({ data: [] })),
+        api.get('/auth/logs').catch(() => ({ data: [] }))
       ]);
       setInventory(invRes.data.content || []);
-      setLowStock(lowStockRes.data || []);
+      setLowStock(lowStockRes.data.content || []);
       setRequests(reqRes.data.content || []);
-    } catch (error) {}
+      
+      const combinedLogs = [
+        ...(invLogsRes.data || []).map(l => ({ ...l, service: 'Inventory', timestamp: l.timestamp })),
+        ...(reqLogsRes.data || []).map(l => ({ ...l, service: 'Requests', timestamp: l.timestamp })),
+        ...(authLogsRes.data || []).map(l => ({ ...l, service: 'Auth', timestamp: l.createdAt, performedBy: l.email }))
+      ];
+      combinedLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setLogs(combinedLogs);
+    } catch (error) {
+      console.error(error);
+    }
     setLoading(false);
   };
 
@@ -83,6 +102,43 @@ const AdminDashboard = () => {
     setRejectId(id);
     setRejectReason('');
     setShowRejectModal(true);
+  };
+
+  const openDetailsModal = (req) => {
+    setSelectedRequest(req);
+    setShowDetailsModal(true);
+  };
+
+  const approveItem = async (reqId, itemId) => {
+    try {
+      await api.post(`/requests/${reqId}/items/${itemId}/approve`);
+      toast.success('Item approved');
+      fetchData();
+      // Optimistically update selectedRequest
+      setSelectedRequest(prev => {
+        if (!prev) return prev;
+        return { ...prev, items: prev.items.map(i => i.itemId === itemId ? { ...i, status: 'APPROVED' } : i) };
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to approve item');
+    }
+  };
+
+  const rejectItem = async (reqId, itemId) => {
+    const reason = window.prompt("Reason for rejecting item?");
+    if (!reason) return;
+    try {
+      await api.post(`/requests/${reqId}/items/${itemId}/reject?reason=${encodeURIComponent(reason)}`);
+      toast.success('Item rejected');
+      fetchData();
+      // Optimistically update selectedRequest
+      setSelectedRequest(prev => {
+        if (!prev) return prev;
+        return { ...prev, items: prev.items.map(i => i.itemId === itemId ? { ...i, status: 'REJECTED' } : i) };
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to reject item');
+    }
   };
 
   const confirmReject = async () => {
@@ -179,6 +235,13 @@ const AdminDashboard = () => {
           >
             <Package size={18} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'text-bottom' }} /> Inventory Mgt
           </button>
+          <button 
+            className={`btn-primary ${activeTab !== 'logs' ? 'outline' : ''}`}
+            style={{ width: 'auto', background: activeTab === 'logs' ? '' : 'transparent', color: activeTab === 'logs' ? '#fff' : 'var(--primary-indigo)' }}
+            onClick={() => setActiveTab('logs')}
+          >
+            <FileText size={18} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'text-bottom' }} /> Logs
+          </button>
         </div>
 
         {/* Low Stock Alerts */}
@@ -221,11 +284,19 @@ const AdminDashboard = () => {
                       <td>{new Date(req.createdAt + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                       <td><span className={`status-chip status-${req.status}`}>{req.status}</span></td>
                       <td>
+                        <button 
+                          className="action-btn" 
+                          style={{ color: 'var(--primary-indigo)', background: 'transparent', border: 'none', cursor: 'pointer', marginRight: '0.5rem' }} 
+                          title="View Details" 
+                          onClick={() => openDetailsModal(req)}
+                        >
+                          View Details
+                        </button>
                         {req.status === 'PENDING' && (
                           <>
                             <button 
                               className="action-btn success" 
-                              title="Approve" 
+                              title="Approve All" 
                               onClick={() => approveRequest(req.requestId)}
                               disabled={processingId === req.requestId}
                               style={{ opacity: processingId === req.requestId ? 0.5 : 1, cursor: processingId === req.requestId ? 'not-allowed' : 'pointer' }}
@@ -234,7 +305,7 @@ const AdminDashboard = () => {
                             </button>
                             <button 
                               className="action-btn danger" 
-                              title="Reject" 
+                              title="Reject All" 
                               onClick={() => openRejectModal(req.requestId)}
                               disabled={processingId === req.requestId}
                               style={{ opacity: processingId === req.requestId ? 0.5 : 1, cursor: processingId === req.requestId ? 'not-allowed' : 'pointer' }}
@@ -315,6 +386,43 @@ const AdminDashboard = () => {
           </motion.div>
         )}
 
+        {activeTab === 'logs' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>Audit Logs</h2>
+            <div className="glass-panel data-table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Service</th>
+                    <th>Who (Performed By)</th>
+                    <th>When (Date & Time)</th>
+                    <th>Action</th>
+                    <th>What (Details)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.slice((logsPage - 1) * itemsPerPage, logsPage * itemsPerPage).map((log, index) => (
+                    <tr key={log.id || `log-${index}`}>
+                      <td><span style={{ fontSize: '0.8rem', padding: '2px 6px', background: '#e5e7eb', borderRadius: '4px' }}>{log.service}</span></td>
+                      <td>{log.performedBy}</td>
+                      <td>{new Date(log.timestamp + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
+                      <td><span className={`status-chip status-${log.action?.toLowerCase() || 'pending'}`}>{log.action}</span></td>
+                      <td>{log.details}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {Math.ceil(logs.length / itemsPerPage) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
+                <button className="btn-primary outline" disabled={logsPage === 1} onClick={() => setLogsPage(p => p - 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Prev</button>
+                <span style={{ fontSize: '0.875rem' }}>Page {logsPage} of {Math.ceil(logs.length / itemsPerPage)}</span>
+                <button className="btn-primary outline" disabled={logsPage === Math.ceil(logs.length / itemsPerPage)} onClick={() => setLogsPage(p => p + 1)} style={{ width: 'auto', padding: '0.25rem 0.75rem' }}>Next</button>
+              </div>
+            )}
+          </motion.div>
+        )}
+
       </div>
 
       {/* Reject Modal */}
@@ -335,6 +443,41 @@ const AdminDashboard = () => {
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn-primary outline" style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid #d1d5db', width: 'auto' }} onClick={() => setShowRejectModal(false)}>Cancel</button>
               <button className="btn-primary" style={{ width: 'auto', background: '#dc2626' }} onClick={confirmReject}>Confirm Rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedRequest && (
+        <div className="modal-overlay">
+          <div className="glass-panel modal-content" style={{ maxWidth: '600px' }}>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Request Details #{selectedRequest.requestId}</h3>
+            <p style={{ marginBottom: '1rem' }}><strong>Student:</strong> {selectedRequest.studentEmail}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {selectedRequest.items?.map(item => {
+                const invItem = inventory.find(i => i.id === item.itemId) || {};
+                return (
+                  <div key={item.id || item.itemId} style={{ padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ fontWeight: 600 }}>{invItem.name || `Item #${item.itemId}`}</h4>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Requested: {item.quantity} | Available: <span style={{ color: invItem.availableQuantity < item.quantity ? '#dc2626' : 'inherit', fontWeight: 500 }}>{invItem.availableQuantity || 0}</span></p>
+                      <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>Status: <span className={`status-chip status-${(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {(item.status === 'PENDING' || !item.status) && selectedRequest.status === 'PENDING' && (
+                        <>
+                          <button className="action-btn success" title="Approve Item" onClick={() => approveItem(selectedRequest.requestId, item.itemId)}><CheckCircle size={18}/></button>
+                          <button className="action-btn danger" title="Reject Item" onClick={() => rejectItem(selectedRequest.requestId, item.itemId)}><XCircle size={18}/></button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button className="btn-primary" style={{ width: 'auto' }} onClick={() => setShowDetailsModal(false)}>Close</button>
             </div>
           </div>
         </div>

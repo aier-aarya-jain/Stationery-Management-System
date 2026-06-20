@@ -19,8 +19,10 @@
 package com.stationery.inventory.service.impl;
 
 import com.stationery.inventory.dto.StationeryItemDto;
+import com.stationery.inventory.entity.InventoryAuditLog;
 import com.stationery.inventory.entity.StationeryItem;
 import com.stationery.inventory.exception.ResourceNotFoundException;
+import com.stationery.inventory.repository.InventoryAuditLogRepository;
 import com.stationery.inventory.repository.StationeryItemRepository;
 import com.stationery.inventory.service.InventoryService;
 import org.springframework.data.domain.Page;
@@ -44,9 +46,11 @@ import java.time.LocalDateTime;
 public class InventoryServiceImpl implements InventoryService {
 
     private final StationeryItemRepository repository;
+    private final InventoryAuditLogRepository auditLogRepository;
 
-    public InventoryServiceImpl(StationeryItemRepository repository) {
+    public InventoryServiceImpl(StationeryItemRepository repository, InventoryAuditLogRepository auditLogRepository) {
         this.repository = repository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     /**
@@ -56,12 +60,13 @@ public class InventoryServiceImpl implements InventoryService {
      * @return Persisted item with generated ID and timestamps
      */
     @Override
-    public StationeryItemDto addItem(StationeryItemDto dto) {
+    public StationeryItemDto addItem(StationeryItemDto dto, String adminEmail) {
         if (repository.existsByNameIgnoreCase(dto.getName())) {
             throw new IllegalArgumentException("An item with this name already exists.");
         }
         StationeryItem item = mapToEntity(dto);
         StationeryItem saved = repository.save(item);
+        logAction("ADD", adminEmail, "Added item: " + saved.getName() + " with qty: " + saved.getAvailableQuantity());
         log.info("Item added successfully: {}", saved.getName());
         return mapToDto(saved);
     }
@@ -78,7 +83,7 @@ public class InventoryServiceImpl implements InventoryService {
      * @throws ResourceNotFoundException if no item exists with the given ID
      */
     @Override
-    public StationeryItemDto updateItem(Long id, StationeryItemDto dto) {
+    public StationeryItemDto updateItem(Long id, StationeryItemDto dto, String adminEmail) {
         StationeryItem item = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found with id: " + id));
 
@@ -95,8 +100,10 @@ public class InventoryServiceImpl implements InventoryService {
         item.setMinimumQuantity(dto.getMinimumQuantity());
         item.setUpdatedAt(LocalDateTime.now());
 
+        StationeryItem saved = repository.save(item);
+        logAction("UPDATE", adminEmail, "Updated item: " + saved.getName());
         log.info("Item updated successfully with id: {}", id);
-        return mapToDto(repository.save(item));
+        return mapToDto(saved);
     }
 
     /**
@@ -109,12 +116,13 @@ public class InventoryServiceImpl implements InventoryService {
      * @throws ResourceNotFoundException if no item exists with the given ID
      */
     @Override
-    public void deleteItem(Long id) {
+    public void deleteItem(Long id, String adminEmail) {
         if (!repository.existsById(id)) {
             log.error("Failed to delete. Item not found with id: {}", id);
             throw new ResourceNotFoundException("Item not found with id: " + id);
         }
         repository.deleteById(id);
+        logAction("DELETE", adminEmail, "Deleted item with id: " + id);
         log.info("Item deleted successfully with id: {}", id);
     }
 
@@ -141,8 +149,12 @@ public class InventoryServiceImpl implements InventoryService {
      * @return Paginated page of item DTOs
      */
     @Override
-    public Page<StationeryItemDto> getAllItems(int page, int size, String sortBy) {
-        return repository.findAll(PageRequest.of(page, size, Sort.by(sortBy))).map(this::mapToDto);
+    public Page<StationeryItemDto> getAllItems(int page, int size, String sortBy, String username, boolean isStudent) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(sortBy));
+        if (isStudent) {
+            logAction("BROWSE", username, "Browsed inventory items");
+        }
+        return repository.findAll(pageable).map(this::mapToDto);
     }
 
     /**
@@ -177,7 +189,7 @@ public class InventoryServiceImpl implements InventoryService {
      * @throws IllegalArgumentException   if stock is insufficient
      */
     @Override
-    public void deductQuantity(Long id, Integer quantityToDeduct) {
+    public void deductQuantity(Long id, Integer quantityToDeduct, String adminEmail) {
         StationeryItem item = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found with id: " + id));
 
@@ -189,12 +201,28 @@ public class InventoryServiceImpl implements InventoryService {
 
         item.setAvailableQuantity(item.getAvailableQuantity() - quantityToDeduct);
         repository.save(item);
+        logAction("DEDUCT", adminEmail, "Deducted quantity " + quantityToDeduct + " from item: " + item.getName());
         log.info("Deducted quantity {} for item id: {}", quantityToDeduct, id);
     }
 
+    @Override
+    public java.util.List<com.stationery.inventory.dto.InventoryAuditLogDto> getAuditLogs() {
+        return auditLogRepository.findAll(Sort.by(Sort.Direction.DESC, "timestamp")).stream()
+                .map(this::mapToAuditLogDto)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     // -------------------------------------------------------
-    // Private mapping helpers — isolate entity/DTO concerns
+    // Private helpers
     // -------------------------------------------------------
+
+    private void logAction(String action, String performedBy, String details) {
+        InventoryAuditLog log = new InventoryAuditLog();
+        log.setAction(action);
+        log.setPerformedBy(performedBy);
+        log.setDetails(details);
+        auditLogRepository.save(log);
+    }
 
     /**
      * Maps a DTO to a new StationeryItem entity for persistence.
@@ -224,6 +252,16 @@ public class InventoryServiceImpl implements InventoryService {
         dto.setMinimumQuantity(entity.getMinimumQuantity());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
+        return dto;
+    }
+
+    private com.stationery.inventory.dto.InventoryAuditLogDto mapToAuditLogDto(InventoryAuditLog entity) {
+        com.stationery.inventory.dto.InventoryAuditLogDto dto = new com.stationery.inventory.dto.InventoryAuditLogDto();
+        dto.setId(entity.getId());
+        dto.setAction(entity.getAction());
+        dto.setPerformedBy(entity.getPerformedBy());
+        dto.setTimestamp(entity.getTimestamp());
+        dto.setDetails(entity.getDetails());
         return dto;
     }
 }

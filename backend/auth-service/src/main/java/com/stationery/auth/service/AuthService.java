@@ -32,4 +32,8 @@ public interface AuthService {
      * @return AuthResponse containing new JWT token and refresh token
      */
     AuthResponse refreshToken(com.stationery.auth.dto.RefreshTokenRequest request);
+
+    void logout(String email);
+
+    java.util.List<com.stationery.auth.dto.AuthAuditLogDto> getAuditLogs();
 }

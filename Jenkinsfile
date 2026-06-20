@@ -5,6 +5,10 @@ pipeline {
         timestamps()
     }
 
+    environment {
+        COMPOSE_FILE = "docker-compose.yml"
+    }
+
     stages {
 
         stage('Checkout') {
@@ -23,57 +27,91 @@ pipeline {
                 if exist backend\\auth-service\\target rmdir /s /q backend\\auth-service\\target
                 if exist backend\\inventory-service\\target rmdir /s /q backend\\inventory-service\\target
                 if exist backend\\request-service\\target rmdir /s /q backend\\request-service\\target
+
+                if exist frontend\\node_modules rmdir /s /q frontend\\node_modules
                 '''
             }
         }
 
-        stage('Build Jars') {
+        stage('Build Backend') {
             steps {
-                dir('backend') {
+                echo 'Building Spring Boot services...'
 
+                dir('backend') {
                     bat '''
                     docker run --rm ^
                     -v "%CD%":/usr/src/app ^
                     -w /usr/src/app ^
                     maven:3.8.5-openjdk-17 ^
-                    mvn package -DskipTests -Dmaven.clean.failOnError=false
+                    mvn clean package -DskipTests
                     '''
                 }
             }
         }
 
-        stage('Stop Existing Containers') {
+        stage('Run Tests') {
             steps {
-                bat 'docker compose -f docker-compose.yml down --remove-orphans'
+                echo 'Running backend tests...'
+
+                dir('backend') {
+                    bat '''
+                    docker run --rm ^
+                    -v "%CD%":/usr/src/app ^
+                    -w /usr/src/app ^
+                    maven:3.8.5-openjdk-17 ^
+                    mvn test
+                    '''
+                }
             }
         }
 
-        stage('Build Fresh Images') {
+        stage('Build Frontend') {
             steps {
-                bat 'docker compose -f docker-compose.yml build --no-cache'
+                dir('frontend') {
+                    bat 'npm ci'
+                    bat 'npm run build'
+                }
             }
         }
 
-        stage('Start Containers') {
+        stage('Build Docker Images') {
             steps {
-                bat 'docker compose -f docker-compose.yml up -d'
+                bat '''
+                docker compose -f %COMPOSE_FILE% build --no-cache
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                bat '''
+                docker compose -f %COMPOSE_FILE% up -d
+                '''
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                bat 'docker compose -f docker-compose.yml ps'
+                bat '''
+                docker compose -f %COMPOSE_FILE% ps
+                '''
             }
         }
     }
 
     post {
+
         success {
-            echo 'Stationery Hub deployed successfully'
+            echo 'Stationery Management System deployed successfully.'
         }
 
         failure {
-            echo 'Stationery Hub deployment failed'
+            echo 'Deployment failed. Check Jenkins logs.'
+        }
+
+        always {
+            bat 'docker images'
+            bat 'docker ps -a'
         }
     }
 }
