@@ -35,20 +35,19 @@ pipeline {
         }
 
         stage('Build Backend') {
-            steps {
-                dir('backend') {
+    steps {
 
-                    bat '''
-                    docker run --rm ^
-                    -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
-                    -v "%CD%":/usr/src/app ^
-                    -w /usr/src/app ^
-                    maven:3.9.9-eclipse-temurin-17 ^
-                    mvn clean package -DskipTests
-                    '''
-                }
-            }
+        dir('backend') {
+
+            bat '''
+            mvn clean
+            mvn package -DskipTests
+            '''
+
         }
+
+    }
+}
 
         stage('Run Tests') {
             steps {
