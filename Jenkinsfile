@@ -42,8 +42,8 @@ pipeline {
                     -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
                     -v "%CD%":/usr/src/app ^
                     -w /usr/src/app ^
-                    maven:3.9.9-eclipse-temurin-17 ^
-                    mvn clean package -DskipTests
+                    maven:3.8.5-openjdk-17 ^
+                    mvn package -DskipTests -Dmaven.clean.failOnError=false
                     '''
                 }
             }
@@ -58,7 +58,7 @@ pipeline {
                     -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
                     -v "%CD%":/usr/src/app ^
                     -w /usr/src/app ^
-                    maven:3.9.9-eclipse-temurin-17 ^
+                    maven:3.8.5-openjdk-17 ^
                     mvn test
                     '''
                 }
