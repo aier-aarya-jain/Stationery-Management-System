@@ -7,6 +7,7 @@ pipeline {
 
     environment {
         COMPOSE_FILE = "docker-compose.yml"
+        MAVEN_OPTS = "-Dhttps.protocols=TLSv1.2"
     }
 
     stages {
@@ -22,8 +23,8 @@ pipeline {
             steps {
                 bat '''
                 if exist backend\\config-server\\target rmdir /s /q backend\\config-server\\target
-                if exist backend\\api-gateway\\target rmdir /s /q backend\\api-gateway\\target
                 if exist backend\\eureka-server\\target rmdir /s /q backend\\eureka-server\\target
+                if exist backend\\api-gateway\\target rmdir /s /q backend\\api-gateway\\target
                 if exist backend\\auth-service\\target rmdir /s /q backend\\auth-service\\target
                 if exist backend\\inventory-service\\target rmdir /s /q backend\\inventory-service\\target
                 if exist backend\\request-service\\target rmdir /s /q backend\\request-service\\target
@@ -35,14 +36,14 @@ pipeline {
 
         stage('Build Backend') {
             steps {
-                echo 'Building Spring Boot services...'
-
                 dir('backend') {
+
                     bat '''
                     docker run --rm ^
+                    -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
                     -v "%CD%":/usr/src/app ^
                     -w /usr/src/app ^
-                    maven:3.8.5-openjdk-17 ^
+                    maven:3.9.9-eclipse-temurin-17 ^
                     mvn clean package -DskipTests
                     '''
                 }
@@ -51,14 +52,14 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                echo 'Running backend tests...'
-
                 dir('backend') {
+
                     bat '''
                     docker run --rm ^
+                    -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
                     -v "%CD%":/usr/src/app ^
                     -w /usr/src/app ^
-                    maven:3.8.5-openjdk-17 ^
+                    maven:3.9.9-eclipse-temurin-17 ^
                     mvn test
                     '''
                 }
@@ -84,19 +85,24 @@ pipeline {
 
         stage('Deploy') {
             steps {
+
                 bat '''
                 docker compose -f %COMPOSE_FILE% up -d
                 '''
+
             }
         }
 
         stage('Verify Deployment') {
             steps {
+
                 bat '''
                 docker compose -f %COMPOSE_FILE% ps
                 '''
+
             }
         }
+
     }
 
     post {
@@ -110,8 +116,13 @@ pipeline {
         }
 
         always {
+
             bat 'docker images'
+
             bat 'docker ps -a'
+
         }
+
     }
+
 }

@@ -13,6 +13,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [reqPage, setReqPage] = useState(1);
   const [invPage, setInvPage] = useState(1);
+  const [reqSortBy, setReqSortBy] = useState('dateDesc');
   const itemsPerPage = 10;
 
   // Details Modal state
@@ -161,14 +162,37 @@ const StudentDashboard = () => {
 
         {activeTab === 'requests' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>Request History</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 600, margin: 0 }}>Request History</h2>
+              <select 
+                value={reqSortBy} 
+                onChange={(e) => setReqSortBy(e.target.value)} 
+                style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #e5e7eb', outline: 'none', background: '#fff' }}
+              >
+                <option value="dateDesc">Date (Newest)</option>
+                <option value="dateAsc">Date (Oldest)</option>
+                <option value="status">Status</option>
+                <option value="itemName">Item Name (A-Z)</option>
+              </select>
+            </div>
             {loading ? <p>Loading...</p> : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {requests.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>You haven't made any requests yet.</p> : null}
                 {[...requests].sort((a, b) => {
-                  if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
-                  if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
-                  return new Date(b.createdAt) - new Date(a.createdAt);
+                  if (reqSortBy === 'dateDesc') {
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                  } else if (reqSortBy === 'dateAsc') {
+                    return new Date(a.createdAt) - new Date(b.createdAt);
+                  } else if (reqSortBy === 'status') {
+                    if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+                    if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
+                    return a.status.localeCompare(b.status);
+                  } else if (reqSortBy === 'itemName') {
+                    const nameA = a.items && a.items.length > 0 ? (inventory.find(i => i.id === a.items[0].itemId)?.name || '') : '';
+                    const nameB = b.items && b.items.length > 0 ? (inventory.find(i => i.id === b.items[0].itemId)?.name || '') : '';
+                    return nameA.localeCompare(nameB);
+                  }
+                  return 0;
                 }).slice((reqPage - 1) * itemsPerPage, reqPage * itemsPerPage).map(req => (
                   <div key={req.requestId} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
