@@ -38,12 +38,8 @@ pipeline {
             steps {
                 dir('backend') {
                     bat '''
-                    docker run --rm ^
-                    -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
-                    -v "%CD%":/usr/src/app ^
-                    -w /usr/src/app ^
-                    maven:3.8.5-openjdk-17 ^
-                    mvn package -DskipTests -Dmaven.clean.failOnError=false
+                    set MAVEN_OPTS=-Dhttps.protocols=TLSv1.2
+                    mvnw.cmd clean package -DskipTests
                     '''
                 }
             }
@@ -52,14 +48,9 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('backend') {
-
                     bat '''
-                    docker run --rm ^
-                    -e MAVEN_OPTS="-Dhttps.protocols=TLSv1.2" ^
-                    -v "%CD%":/usr/src/app ^
-                    -w /usr/src/app ^
-                    maven:3.8.5-openjdk-17 ^
-                    mvn test
+                    set MAVEN_OPTS=-Dhttps.protocols=TLSv1.2
+                    mvnw.cmd test
                     '''
                 }
             }
