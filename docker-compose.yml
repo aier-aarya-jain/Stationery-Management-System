@@ -30,6 +30,7 @@ services:
   mysql:
     image: mysql:8.0
     container_name: stationery_mysql
+    restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=password
     ports:
@@ -46,6 +47,7 @@ services:
   config-server:
     build: ./backend/config-server
     container_name: config-server
+    restart: always
     ports:
       - "8888:8888"
     volumes:
@@ -61,6 +63,7 @@ services:
   eureka-server:
     build: ./backend/eureka-server
     container_name: eureka-server
+    restart: always
     ports:
       - "8761:8761"
     networks:
@@ -74,6 +77,7 @@ services:
   api-gateway:
     build: ./backend/api-gateway
     container_name: api-gateway
+    restart: always
     ports:
       - "8085:8080"
     environment:
@@ -91,6 +95,7 @@ services:
   auth-service:
     build: ./backend/auth-service
     container_name: auth-service
+    restart: always
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -109,6 +114,7 @@ services:
   inventory-service:
     build: ./backend/inventory-service
     container_name: inventory-service
+    restart: always
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -127,6 +133,7 @@ services:
   request-service:
     build: ./backend/request-service
     container_name: request-service
+    restart: always
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -145,6 +152,7 @@ services:
   frontend:
     build: ./frontend
     container_name: frontend
+    restart: always
     ports:
       - "3000:80"
     networks:
