@@ -563,3 +563,92 @@ public class ApiGatewayApplication {
     }
 }
 ```
+
+---
+
+## 🧪 Testing in Detail (How We Ensure the Code Works)
+
+To guarantee the system functions flawlessly, we write **Automated Tests** for the backend logic using **JUnit 5** and **Mockito**.
+
+### The Concept of "Mocking"
+Because we don't want our tests to actually mess up the real MySQL database (and because real databases are slow), we use a tool called **Mockito**. Mockito creates a "fake" database in the computer's memory just for the 1 second it takes to run the test. We can tell this fake database exactly how to behave.
+
+### Line-by-Line Test Example
+Here is exactly how a test works, using `InventoryServiceImplTest.java` as our example. This test proves that our system correctly stops a student from taking 110 pens if we only have 100 in stock!
+
+```java
+// Line 1: We tell the test to use Mockito to fake our dependencies.
+@ExtendWith(MockitoExtension.class)
+public class InventoryServiceImplTest {
+
+    // Line 4: @Mock creates a 100% fake "pretend" version of our MySQL database repository.
+    @Mock
+    private StationeryItemRepository repository;
+
+    // Line 8: @InjectMocks creates the REAL InventoryService, but injects the FAKE database into it!
+    @InjectMocks
+    private InventoryServiceImpl inventoryService;
+
+    // Line 12: We create a pretend 'Pen' with exactly 100 stock available.
+    private StationeryItem item;
+
+    @BeforeEach
+    void setUp() {
+        item = new StationeryItem();
+        item.setName("Pen");
+        item.setAvailableQuantity(100);
+    }
+
+    // Line 21: @Test tells Java this is an automated test script.
+    @Test
+    void deductQuantity_InsufficientStock_ThrowsException() {
+        
+        // --- STEP 1: ARRANGE ---
+        // We tell our fake database: "When the service asks you to find an item with ID 1, give it our pretend Pen."
+        when(repository.findById(anyLong())).thenReturn(Optional.of(item));
+
+        // --- STEP 2 & 3: ACT and ASSERT ---
+        // We ACT by trying to deduct 110 pens. We ASSERT (check) that the code throws an IllegalArgumentException because 110 is more than the 100 we have!
+        assertThrows(IllegalArgumentException.class, () -> {
+            inventoryService.deductQuantity(1L, 110, "admin@test.com");
+        });
+        
+        // --- STEP 4: VERIFY ---
+        // We verify that the fake database was NEVER asked to save a new stock amount (because the transaction should have crashed).
+        verify(repository, never()).save(any(StationeryItem.class));
+    }
+}
+```
+
+### Why Do We Test Like This?
+By writing tests this way, we can prove that every single rule in our system (like "Don't let stock go below zero" or "Don't allow duplicate emails") actually works, without ever needing to open a web browser, start a database, or click any buttons!
+
+---
+
+## 📊 Code Quality & SonarQube (`sonar-project.properties`)
+
+**SonarQube** is our automated code reviewer. Every time we write new code, SonarQube reads it and grades it.
+
+- **What is `sonar-project.properties`?**: This file tells the SonarQube server exactly *where* to find our source code and where to find our test files so it can scan them.
+- **What it looks for**:
+  1. **Bugs**: Code that will crash the program.
+  2. **Vulnerabilities**: Security holes where hackers could get in (like hardcoded passwords).
+  3. **Code Smells**: Code that works, but is messy, overly complicated, or hard to read.
+  4. **Test Coverage**: It checks if we wrote enough tests. If only 20% of our code has tests, SonarQube will flag it!
+
+---
+
+## 🗄️ How the MySQL Databases Work
+
+Instead of dumping everything into one giant database, this system follows the Microservices best practice: **Database-per-Service**.
+
+### 1. Isolated Databases
+We have three separate databases running inside one MySQL Docker container:
+- `stationery_auth`: Stores users, passwords, and roles.
+- `stationery_inventory`: Stores pens, paper, stock counts.
+- `stationery_request`: Stores who requested what, and whether it was approved.
+
+### 2. How the Tables Get Created Automatically
+You don't have to write SQL `CREATE TABLE` commands by hand!
+- **Docker Init Scripts**: Inside the `mysql/` folder, we have tiny `.sql` scripts. When Docker turns on the MySQL container for the very first time, it automatically reads these scripts to create the blank `stationery_auth`, `stationery_inventory`, and `stationery_request` databases.
+- **Spring Boot Magic (Hibernate)**: Inside the Java code, we use things called **JPA Entities** (like `User.java` or `StationeryItem.java`). Spring Boot looks at these Java classes, notices the `@Entity` tag, and automatically reaches out to MySQL to build the exact columns needed for the tables. (This happens because of the `ddl-auto: update` setting in our YAML files!)
