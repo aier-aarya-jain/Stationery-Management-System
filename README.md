@@ -159,7 +159,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3306:3306"
+      - "3307:3306"
 
   # Line 12-20: We define the Config Server. It builds from the backend/config-server folder.
   config-server:

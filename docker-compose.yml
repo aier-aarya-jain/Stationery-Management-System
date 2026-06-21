@@ -1,19 +1,5 @@
 # docker-compose.yml — Stationery Management System Infrastructure
-#
-# Defines and orchestrates all services required to run the application locally.
-# Services are connected via a shared Docker bridge network (stationery-net).
-#
-# Startup Order (enforced by depends_on):
-#   mysql → config-server → eureka-server → api-gateway
-#                                         → auth-service
-#                                         → inventory-service
-#                                         → request-service
-#
-# Networking Assumption:
-#   All inter-service communication uses Docker service names as hostnames
-#   (e.g., "mysql", "eureka-server"). These are resolved within stationery-net
-#   and are NOT accessible by name from the host machine.
-#
+
 # Port Mapping (host:container):
 #   3306  → MySQL Database
 #   8888  → Config Server
