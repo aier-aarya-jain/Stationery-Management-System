@@ -9,6 +9,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// Basic function for main App component and routing setup
 function App() {
   return (
     <BrowserRouter>

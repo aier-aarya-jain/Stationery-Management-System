@@ -319,6 +319,7 @@ public class RequestServiceImpl implements RequestService {
         return mapToDto(saved);
     }
 
+    // Fallback function when item approval fails
     public RequestResponseDto approveItemFallback(Long requestId, Long itemId, String adminEmail, String token, Throwable t) {
         if (t instanceof BusinessException) {
             throw (BusinessException) t;
@@ -328,6 +329,7 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
+    // Function to reject a specific item in a request
     public RequestResponseDto rejectItem(Long requestId, Long itemId, String adminEmail, String reason) {
         StationeryRequest request = getRequestById(requestId);
         RequestItem item = request.getItems().stream().filter(i -> i.getItemId().equals(itemId)).findFirst()
@@ -344,6 +346,7 @@ public class RequestServiceImpl implements RequestService {
         return mapToDto(saved);
     }
 
+    // Function to check and update overall request status based on item statuses
     private void checkAndUpdateRequestStatus(StationeryRequest request) {
         long pendingCount = request.getItems().stream().filter(i -> i.getStatus() == RequestStatus.PENDING).count();
         if (pendingCount == 0) {

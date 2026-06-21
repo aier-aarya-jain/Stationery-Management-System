@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 
+// Basic function component for Registration page
 const Register = () => {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -17,10 +18,12 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  // Basic function to handle form input changes
   const handleChange = (e) => {
     setFormData({...formData, [e.target.name]: e.target.value});
   };
 
+  // Basic function to handle registration submission
   const handleRegister = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {

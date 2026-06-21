@@ -216,6 +216,7 @@ public class InventoryServiceImpl implements InventoryService {
     // Private helpers
     // -------------------------------------------------------
 
+    // Function to log inventory action
     private void logAction(String action, String performedBy, String details) {
         InventoryAuditLog log = new InventoryAuditLog();
         log.setAction(action);
@@ -228,6 +229,7 @@ public class InventoryServiceImpl implements InventoryService {
      * Maps a DTO to a new StationeryItem entity for persistence.
      * ID and timestamps are intentionally omitted (set by MySQL and @PrePersist).
      */
+    // Function to map DTO to Entity
     private StationeryItem mapToEntity(StationeryItemDto dto) {
         StationeryItem item = new StationeryItem();
         item.setName(dto.getName());
@@ -242,6 +244,7 @@ public class InventoryServiceImpl implements InventoryService {
      * Maps a StationeryItem entity to a DTO for API responses.
      * Includes all fields including ID and timestamps.
      */
+    // Function to map Entity to DTO
     private StationeryItemDto mapToDto(StationeryItem entity) {
         StationeryItemDto dto = new StationeryItemDto();
         dto.setId(entity.getId());
@@ -255,6 +258,7 @@ public class InventoryServiceImpl implements InventoryService {
         return dto;
     }
 
+    // Function to map Audit Log Entity to DTO
     private com.stationery.inventory.dto.InventoryAuditLogDto mapToAuditLogDto(InventoryAuditLog entity) {
         com.stationery.inventory.dto.InventoryAuditLogDto dto = new com.stationery.inventory.dto.InventoryAuditLogDto();
         dto.setId(entity.getId());

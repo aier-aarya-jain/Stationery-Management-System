@@ -65,6 +65,7 @@ public class AuthServiceImpl implements AuthService {
         this.authAuditLogRepository = authAuditLogRepository;
     }
 
+    // Function to log an audit action
     private void logAction(String action, String email, String details) {
         com.stationery.auth.entity.AuthAuditLog logEntry = new com.stationery.auth.entity.AuthAuditLog();
         logEntry.setAction(action);
@@ -74,6 +75,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    // Function to register a new user
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             log.error("Registration failed: Email {} is already taken", request.getEmail());
@@ -98,6 +100,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    // Function to authenticate and login user
     public AuthResponse login(AuthRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
@@ -114,6 +117,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    // Function to refresh the JWT token
     public AuthResponse refreshToken(com.stationery.auth.dto.RefreshTokenRequest request) {
         String reqToken = request.getRefreshToken();
         String username = jwtUtil.extractUsername(reqToken);
@@ -129,11 +133,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    // Function to log the user out
     public void logout(String email) {
         logAction("LOGOUT", email, "User logged out");
     }
 
     @Override
+    // Function to retrieve auth audit logs
     public java.util.List<com.stationery.auth.dto.AuthAuditLogDto> getAuditLogs() {
         return authAuditLogRepository.findAll().stream().map(l -> {
             com.stationery.auth.dto.AuthAuditLogDto dto = new com.stationery.auth.dto.AuthAuditLogDto();

@@ -6,12 +6,14 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 
+// Basic function component for Login page
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  // Basic function to handle login submission
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
