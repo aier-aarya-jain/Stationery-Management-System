@@ -36,12 +36,20 @@ services:
     restart: always
     ports:
       - "8888:8888"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     volumes:
       - ./backend/config-repo:/config-repo
     networks:
       - stationery-net
     depends_on:
       - mysql
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/application/default"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   # -------------------------------------------------------
   # Eureka Server — Service registry for dynamic service discovery.
@@ -55,7 +63,14 @@ services:
     networks:
       - stationery-net
     depends_on:
-      - config-server
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   # -------------------------------------------------------
   # API Gateway — Single entry point for all client requests.
@@ -72,8 +87,16 @@ services:
     networks:
       - stationery-net
     depends_on:
-      - eureka-server
-      - config-server
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   # -------------------------------------------------------
   # Auth Service — Handles user registration and login.
@@ -91,9 +114,12 @@ services:
     networks:
       - stationery-net
     depends_on:
-      - mysql
-      - eureka-server
-      - config-server
+      mysql:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
 
   # -------------------------------------------------------
   # Inventory Service — Manages stationery stock.
@@ -111,9 +137,12 @@ services:
     networks:
       - stationery-net
     depends_on:
-      - mysql
-      - eureka-server
-      - config-server
+      mysql:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
 
   # -------------------------------------------------------
   # Request Service — Manages student stationery requests.
@@ -131,9 +160,12 @@ services:
     networks:
       - stationery-net
     depends_on:
-      - mysql
-      - eureka-server
-      - config-server
+      mysql:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
 
   # -------------------------------------------------------
   # Frontend Service — React App
@@ -147,7 +179,8 @@ services:
     networks:
       - stationery-net
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
 
 # Shared bridge network
 networks:

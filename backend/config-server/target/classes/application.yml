@@ -13,8 +13,7 @@ spring:
           # Configuration files will be loaded from a local directory named config-repo
           search-locations: file:../config-repo
 
-# Disable eureka client for the config server to avoid circular dependencies at startup
 eureka:
   client:
-    registerWithEureka: false
-    fetchRegistry: false
+    serviceUrl:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
