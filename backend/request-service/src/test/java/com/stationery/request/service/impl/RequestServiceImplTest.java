@@ -28,6 +28,10 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Test class for RequestServiceImpl.
+ * Tests functionalities related to submitting and approving stationery requests.
+ */
 @ExtendWith(MockitoExtension.class)
 public class RequestServiceImplTest {
 
@@ -50,6 +54,7 @@ public class RequestServiceImplTest {
     private RequestSubmissionDto submissionDto;
 
     @BeforeEach
+    // Set up mock data before each test
     void setUp() {
         request = new StationeryRequest();
         request.setRequestId(1L);
@@ -69,6 +74,7 @@ public class RequestServiceImplTest {
     }
 
     @Test
+    // Test successful submission of a new stationery request
     void submitRequest_Successful() {
         when(requestRepository.save(any(StationeryRequest.class))).thenReturn(request);
 
@@ -81,6 +87,7 @@ public class RequestServiceImplTest {
     }
 
     @Test
+    // Test successful approval of a pending request
     void approveRequest_Successful() {
         when(requestRepository.findById(anyLong())).thenReturn(Optional.of(request));
         when(requestRepository.save(any(StationeryRequest.class))).thenReturn(request);
@@ -93,6 +100,7 @@ public class RequestServiceImplTest {
     }
 
     @Test
+    // Test exception handling when trying to approve a request that is not pending
     void approveRequest_StatusNotPending_ThrowsException() {
         request.setStatus(RequestStatus.APPROVED);
         when(requestRepository.findById(anyLong())).thenReturn(Optional.of(request));

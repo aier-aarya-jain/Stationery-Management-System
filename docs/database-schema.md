@@ -2,65 +2,6 @@
 
 The system employs a strict Database-per-Service pattern. Each microservice manages its own isolated MySQL database, ensuring loose coupling and independent scalability.
 
-## Entity Relationship Diagram (ERD)
-
-```mermaid
-erDiagram
-    %% Auth Service Database
-    USER {
-        Long id PK
-        String email UK "Unique student or admin email"
-        String password "BCrypt Hashed"
-        String fullName
-        String role "ROLE_ADMIN or ROLE_STUDENT"
-        DateTime createdAt "JPA Audited"
-        DateTime updatedAt "JPA Audited"
-    }
-
-    %% Inventory Service Database
-    STATIONERY_ITEM {
-        Long id PK
-        String name
-        String category
-        String unit "e.g., Box, Pack, Piece"
-        Integer availableQuantity "Current stock"
-        Integer minimumQuantity "Threshold for low-stock alerts"
-        DateTime createdAt "JPA Audited"
-        DateTime updatedAt "JPA Audited"
-    }
-
-    %% Request Service Database
-    STATIONERY_REQUEST {
-        Long requestId PK
-        String studentEmail "Matches Auth DB email"
-        String status "PENDING, APPROVED, REJECTED, FULFILLED"
-        String rejectionReason "Nullable, populated on REJECT"
-        DateTime createdAt "JPA Audited"
-        DateTime updatedAt "JPA Audited"
-    }
-
-    REQUEST_ITEM {
-        Long id PK
-        Long itemId FK "Matches StationeryItem ID"
-        Integer quantity "Amount requested"
-        DateTime createdAt "JPA Audited"
-        DateTime updatedAt "JPA Audited"
-    }
-
-    AUDIT_LOG {
-        Long id PK
-        String action "SUBMIT, APPROVE, REJECT, FULFILL"
-        String performedBy "Email of actor"
-        DateTime timestamp "JPA Audited"
-        DateTime updatedAt "JPA Audited"
-        String details "Human readable action trace"
-    }
-
-    %% Relationships
-    STATIONERY_REQUEST ||--|{ REQUEST_ITEM : "contains (1-to-Many)"
-    USER ||--o{ STATIONERY_REQUEST : "submits (Logical Link via Email)"
-    STATIONERY_ITEM ||--o{ REQUEST_ITEM : "referenced by (Logical Link via ID)"
-```
 
 ## Database Breakdown
 

@@ -1,5 +1,7 @@
+// End-to-end API test script for inventory operations
 const axios = require('axios');
 
+// Main test function to authenticate and perform inventory actions
 async function test() {
   try {
     // 1. login to get token

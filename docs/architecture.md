@@ -1,6 +1,3 @@
-# Architecture Flow Explanation
-
-Based on the `architecture.png` diagram, the Stationery Management System follows a microservices architecture pattern. Here is a detailed breakdown of the components and their interactions:
 
 ## 1. Client Layer
 - **Frontend**: The user interface of the application. All client requests originate here and are sent directly to the API Gateway. It does not interact directly with any individual backend service.

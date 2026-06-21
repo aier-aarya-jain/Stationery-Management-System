@@ -4,13 +4,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-/**
- * Main entry point for the API Gateway.
- * 
- * Routes all incoming external requests from the React frontend 
- * to the appropriate internal microservices (Auth, Inventory, Request).
- * Acts as the single entry point, handling CORS and routing using 
- * Spring Cloud Gateway and Eureka Service Discovery.
+/*
+  Main entry point for the API Gateway.
+  
+  Routes all incoming external requests from the React frontend 
+  to the appropriate internal microservices (Auth, Inventory, Request).
+  Acts as the single entry point, handling CORS and routing using 
+  Spring Cloud Gateway and Eureka Service Discovery.
  */
 @SpringBootApplication
 @EnableDiscoveryClient

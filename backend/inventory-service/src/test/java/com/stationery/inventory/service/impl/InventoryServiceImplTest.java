@@ -19,6 +19,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
+/**
+ * Test class for InventoryServiceImpl.
+ * Tests inventory operations like adding items, retrieving items, and deducting quantity.
+ */
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("null")
 public class InventoryServiceImplTest {
@@ -36,6 +40,7 @@ public class InventoryServiceImplTest {
     private StationeryItemDto dto;
 
     @BeforeEach
+    // Set up mock data before each test
     void setUp() {
         item = new StationeryItem();
         item.setId(1L);
@@ -54,6 +59,7 @@ public class InventoryServiceImplTest {
     }
 
     @Test
+    // Test successful addition of a new stationery item
     void addItem_Successful() {
         when(repository.save(any(StationeryItem.class))).thenReturn(item);
 
@@ -66,6 +72,7 @@ public class InventoryServiceImplTest {
     }
 
     @Test
+    // Test successful retrieval of an item by its ID
     void getItemById_Successful() {
         when(repository.findById(anyLong())).thenReturn(Optional.of(item));
 
@@ -76,6 +83,7 @@ public class InventoryServiceImplTest {
     }
 
     @Test
+    // Test exception handling when item ID is not found
     void getItemById_ItemNotFound_ThrowsException() {
         when(repository.findById(anyLong())).thenReturn(Optional.empty());
 
@@ -83,6 +91,7 @@ public class InventoryServiceImplTest {
     }
 
     @Test
+    // Test successful deduction of item quantity
     void deductQuantity_Successful() {
         when(repository.findById(anyLong())).thenReturn(Optional.of(item));
 
@@ -93,6 +102,7 @@ public class InventoryServiceImplTest {
     }
 
     @Test
+    // Test exception handling when deducting quantity exceeds available stock
     void deductQuantity_InsufficientStock_ThrowsException() {
         when(repository.findById(anyLong())).thenReturn(Optional.of(item));
 

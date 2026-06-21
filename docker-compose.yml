@@ -48,6 +48,8 @@ services:
     container_name: config-server
     ports:
       - "8888:8888"
+    volumes:
+      - ./backend/config-repo:/config-repo
     networks:
       - stationery-net
     depends_on:
@@ -76,10 +78,12 @@ services:
       - "8085:8080"
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888/
     networks:
       - stationery-net
     depends_on:
       - eureka-server
+      - config-server
 
   # -------------------------------------------------------
   # Auth Service — Handles user registration and login.
@@ -91,11 +95,13 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888/
     networks:
       - stationery-net
     depends_on:
       - mysql
       - eureka-server
+      - config-server
 
   # -------------------------------------------------------
   # Inventory Service — Manages stationery stock.
@@ -107,11 +113,13 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888/
     networks:
       - stationery-net
     depends_on:
       - mysql
       - eureka-server
+      - config-server
 
   # -------------------------------------------------------
   # Request Service — Manages student stationery requests.
@@ -123,11 +131,13 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888/
     networks:
       - stationery-net
     depends_on:
       - mysql
       - eureka-server
+      - config-server
 
   # -------------------------------------------------------
   # Frontend Service — React App

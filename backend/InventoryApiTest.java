@@ -3,7 +3,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+/**
+ * Integration test for the Inventory API.
+ * Tests login and deleting an inventory item.
+ */
 public class InventoryApiTest {
+    // Execute tests for login and inventory deletion endpoints
     public static void main(String[] args) {
         try {
             HttpClient client = HttpClient.newHttpClient();

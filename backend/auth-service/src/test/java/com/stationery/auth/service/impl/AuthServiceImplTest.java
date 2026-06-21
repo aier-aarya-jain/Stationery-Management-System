@@ -27,6 +27,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Test class for AuthServiceImpl.
+ * Tests user registration and login functionalities.
+ */
 @ExtendWith(MockitoExtension.class)
 public class AuthServiceImplTest {
 
@@ -55,6 +59,7 @@ public class AuthServiceImplTest {
     private UserDetails userDetails;
 
     @BeforeEach
+    // Set up mock data before each test
     void setUp() {
         user = new User();
         user.setEmail("test@test.com");
@@ -66,6 +71,7 @@ public class AuthServiceImplTest {
     }
 
     @Test
+    // Test successful user registration
     void register_Successful() {
         RegisterRequest request = new RegisterRequest();
         request.setEmail("test@test.com");
@@ -88,6 +94,7 @@ public class AuthServiceImplTest {
     }
 
     @Test
+    // Test registration failure when email is already taken
     void register_EmailAlreadyTaken_ThrowsException() {
         RegisterRequest request = new RegisterRequest();
         request.setEmail("test@test.com");
@@ -99,6 +106,7 @@ public class AuthServiceImplTest {
     }
 
     @Test
+    // Test successful user login
     void login_Successful() {
         AuthRequest request = new AuthRequest();
         request.setEmail("test@test.com");
